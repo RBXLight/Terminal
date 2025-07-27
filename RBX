@@ -15251,6 +15251,10 @@ cmd.add({"RoChipsCMDS"},{"RoChipsCMDS"},function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/randomstring0/new/refs/heads/main/cmd.lua"))()
 end)
 
+cmd.add({"Telekinesis"},{"Telekinesis"},function()
+	loadstring(game:HttpGet('https://raw.githubusercontent.com/skibicumrocket/piss-monster/refs/heads/main/telekines.txt'))()
+end)
+
 cmd.add({"gravity","grav"},{"gravity <amount> (grav)","sets game gravity to whatever u want"},function(...)
 	workspace.Gravity=(...)
 end,true)
