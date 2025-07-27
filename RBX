@@ -15260,7 +15260,7 @@ loadstring(game:HttpGet('https://rawscripts.net/raw/Server-Browser_80'))()
 end)
 
 cmd.add({"WrathAdmin"},{"WrathAdmin"},function()
-https://raw.githubusercontent.com/Chaosscripter/Riotscripter-PrizzLife/refs/heads/main/Wrath-Admin
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Chaosscripter/Riotscripter-PrizzLife/refs/heads/main/Wrath-Admin"))
 end)
 
 cmd.add({"gravity","grav"},{"gravity <amount> (grav)","sets game gravity to whatever u want"},function(...)
