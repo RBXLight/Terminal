@@ -15255,6 +15255,11 @@ cmd.add({"Telekinesis"},{"Telekinesis"},function()
 	loadstring(game:HttpGet('https://raw.githubusercontent.com/skibicumrocket/piss-monster/refs/heads/main/telekines.txt'))()
 end)
 
+cmd.add({"ServerPanel"},{"ServerPanel"},function()
+loadstring(game:HttpGet('https://rawscripts.net/raw/Server-Browser_80'))()
+end)
+
+
 cmd.add({"gravity","grav"},{"gravity <amount> (grav)","sets game gravity to whatever u want"},function(...)
 	workspace.Gravity=(...)
 end,true)
