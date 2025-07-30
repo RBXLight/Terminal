@@ -22067,3 +22067,191 @@ NAgui.addButton("Remove Chat Tag", function()
 
 	DebugNotif("Custom chat tag removed.",2.5)
 end)
+
+pcall(function()
+    local function runColorPicker()
+       -- LocalScript for StarterPlayerScripts or StarterGui
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- GUI Container
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ColorSelectorUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- Round Main Button
+local buttonFrame = Instance.new("Frame")
+buttonFrame.Size = UDim2.new(0, 35, 0, 35)
+buttonFrame.Position = UDim2.new(1, -485, 0, 10)
+buttonFrame.AnchorPoint = Vector2.new(1, 0)
+buttonFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+buttonFrame.Parent = screenGui
+Instance.new("UICorner", buttonFrame).CornerRadius = UDim.new(1, 0)
+local stroke = Instance.new("UIStroke", buttonFrame)
+stroke.Thickness = 1
+stroke.Color = Color3.fromRGB(90, 90, 90)
+
+-- Icon (color palette)
+local icon = Instance.new("ImageLabel", buttonFrame)
+icon.Size = UDim2.new(0.7, 0, 0.7, 0)
+icon.Position = UDim2.new(0.15, 0, 0.15, 0)
+icon.BackgroundTransparency = 1
+icon.Image = "rbxassetid://3926307971"
+icon.ImageRectSize = Vector2.new(36, 36)
+icon.ImageRectOffset = Vector2.new(204, 684)
+
+-- Clickable and draggable overlay
+local button = Instance.new("TextButton", buttonFrame)
+button.Size = UDim2.new(1, 0, 1, 0)
+button.Text = ""
+button.BackgroundTransparency = 1
+button.AutoButtonColor = false
+
+-- Drag logic
+local dragging = false
+local dragInput, dragStart, startPos
+
+button.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = buttonFrame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+button.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		buttonFrame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- Color Picker Popup
+local colorFrame = Instance.new("Frame", buttonFrame)
+colorFrame.Size = UDim2.new(0, 250, 0, 50)
+colorFrame.Position = UDim2.new(0.5, -125, 1, 8)
+colorFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+colorFrame.Visible = false
+colorFrame.BorderSizePixel = 0
+Instance.new("UICorner", colorFrame).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", colorFrame).Color = Color3.fromRGB(70, 70, 70)
+
+-- Swatch colors
+local colors = {
+	Color3.fromRGB(170, 0, 255),   -- Purple
+	Color3.fromRGB(0, 170, 0),     -- Green
+	Color3.fromRGB(255, 0, 0),     -- Red
+	Color3.fromRGB(0, 85, 255),    -- Blue
+	Color3.fromRGB(255, 170, 0),   -- Orange
+	Color3.fromRGB(255, 255, 255), -- White
+	Color3.fromRGB(0, 0, 0),       -- Black
+}
+
+-- Apply gradient to valid UI elements
+local function applyGradientTo(instance, gradient)
+	if not instance:IsA("ImageLabel") and not instance:IsA("Frame") then return end
+
+	local nameLower = instance.Name:lower()
+	local parentNameLower = (instance.Parent and instance.Parent.Name:lower()) or ""
+
+	-- Skip player background panels
+	if nameLower:find("playerlist") or nameLower:find("report") or nameLower:find("block") then return end
+	if parentNameLower == "players" or parentNameLower:find("playerlist") then return end
+	if instance:FindFirstChild("BlockButton") or instance:FindFirstChild("ReportButton") then return end
+
+	-- Apply gradient
+	local existing = instance:FindFirstChildOfClass("UIGradient")
+	if existing then existing:Destroy() end
+	local uiGradient = Instance.new("UIGradient")
+	uiGradient.Color = gradient
+	uiGradient.Parent = instance
+end
+
+-- Apply to PlayerGui + CoreGui
+local function applyGradient(baseColor)
+	local gradient = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, baseColor),
+		ColorSequenceKeypoint.new(1, baseColor:Lerp(Color3.new(1, 1, 1), 0.3))
+	})
+
+	-- PlayerGui
+	for _, v in ipairs(playerGui:GetDescendants()) do
+		pcall(function()
+			applyGradientTo(v, gradient)
+		end)
+	end
+
+	-- CoreGui (Chat, menu panels, etc.)
+	for _, v in ipairs(CoreGui:GetDescendants()) do
+		pcall(function()
+			if not v:IsDescendantOf(playerGui) then
+				applyGradientTo(v, gradient)
+			end
+		end)
+	end
+end
+
+-- Detect new CoreGui UIs (like Esc menu or Players panel)
+CoreGui.ChildAdded:Connect(function(child)
+	task.wait(0.5)
+	for _, v in ipairs(child:GetDescendants()) do
+		pcall(function()
+			local col = icon.ImageColor3
+			local grad = ColorSequence.new{
+				ColorSequenceKeypoint.new(0, col),
+				ColorSequenceKeypoint.new(1, col:Lerp(Color3.new(1,1,1),0.3))
+			}
+			applyGradientTo(v, grad)
+		end)
+	end
+end)
+
+-- Create swatch buttons
+for i, color in ipairs(colors) do
+	local swatch = Instance.new("TextButton")
+	swatch.Size = UDim2.new(0, 28, 0, 28)
+	swatch.Position = UDim2.new(0, (i - 1) * 34 + 10, 0, 11)
+	swatch.BackgroundColor3 = color
+	swatch.Text = ""
+	swatch.BorderSizePixel = 0
+	swatch.ZIndex = 5
+	swatch.Parent = colorFrame
+	Instance.new("UICorner", swatch).CornerRadius = UDim.new(1, 0)
+
+	swatch.MouseButton1Click:Connect(function()
+		applyGradient(color)
+		icon.ImageColor3 = color
+		colorFrame.Visible = false
+	end)
+end
+
+-- Toggle visibility on click
+button.MouseButton1Click:Connect(function()
+	colorFrame.Visible = not colorFrame.Visible
+end)
+
+    end
+    runColorPicker()
+end)
