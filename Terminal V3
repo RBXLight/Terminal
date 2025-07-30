@@ -6270,7 +6270,7 @@ cmd.add({"Telekinesis"},{"Telekinesis"},function()
 end)
 
 cmd.add({"ServerPanel"},{"ServerPanel"},function()
-loadstring(game:HttpGet("raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/ServerLister.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/ServerLister.lua"))()
 end)
 
 cmd.add({"WrathAdmin"},{"WrathAdmin"},function()
