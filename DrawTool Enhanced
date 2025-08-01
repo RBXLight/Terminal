@@ -1,0 +1,975 @@
+--[[ 
+Enhanced Terror Drawing Tool (Terror: Long Straight 200+ High Edition)
+Improved UI: Collapsible sections, Settings menu (refresh rate/damage toggle) restored and working.
+- Features are grouped into sections with clickable headers. Clicking toggles visibility of section's buttons.
+- Settings ("...") button at top right toggles settings menu for refresh rate and damage.
+- All features and VETO (1.5x smaller, vertical, proper O, nice spacing) included.
+--]]
+
+do
+	local plr = game:GetService("Players").LocalPlayer
+
+	local function getOtherPlayers()
+		local others = {}
+		for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+			if player ~= plr and player.Character and player.Character:FindFirstChild("Head") then
+				table.insert(others, player)
+			end
+		end
+		return others
+	end
+
+	local Fire_Replicated_Bullet = function(Args, DoDamage)
+		local Bullets = {}
+		for i, v in pairs(Args) do
+			local dist = (v.START-v.END).magnitude
+			local s = (dist/1)
+			local vector = Vector3.new(math.random(-s,s)/10,math.random(-s,s)/10,math.random(-s,s)/10)
+			local Ray = Ray.new(v.START, ((v.END + vector)- v.START).unit*100000)
+			local position =  v.END
+			local distance = (position - v.START).magnitude
+			local rayPart = Instance.new("Part",workspace)
+			local mesh = Instance.new("BlockMesh",rayPart)
+			mesh.Scale = Vector3.new(.5,.5,1)
+			rayPart.Name = "RayPart"
+			rayPart.BrickColor = BrickColor.Yellow()
+			rayPart.Material = Enum.Material.Neon
+			rayPart.Anchored = true
+			rayPart.CanCollide = false
+			rayPart.Transparency = .2
+			rayPart.formFactor = Enum.FormFactor.Custom
+			rayPart.Size = Vector3.new(.22,.22,distance)
+			rayPart.CFrame = CFrame.new(position,v.START) * CFrame.new(0,0,-distance/2)
+			game:GetService("Debris"):AddItem(rayPart,.13)
+			local RealHit,RealPos = workspace:FindPartOnRay(Ray,plr.Character)
+			for i =1,((v.HIT and v.HIT:IsA("Player") and 9) or 1) do
+				Bullets[#Bullets + 1] = {
+					["RayObject"] = Ray,
+					["Distance"] = distance,
+					["Cframe"] = rayPart.CFrame,
+					["Hit"] = (v.HIT and v.HIT:IsA("Player") and v.HIT.Character.Head) or (DoDamage and RealHit) or workspace:FindFirstChildOfClass("Part"),
+				}
+			end
+		end
+		local Tool,Gun = ("Remington 870"),nil
+		repeat task.wait() 
+			workspace.Remote.ItemHandler:InvokeServer{ Position = plr.Character:GetPivot().p, Parent = workspace.Prison_ITEMS:FindFirstChild(Tool, true) }
+			Gun = plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool) 
+		until plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool) and plr.Character:FindFirstChildOfClass("Humanoid")
+		game:GetService("ReplicatedStorage"):WaitForChild("ShootEvent"):FireServer(Bullets, Gun)
+		game:GetService("ReplicatedStorage").ReloadEvent:FireServer(Gun)
+	end
+
+	local DrawSettings = {
+		ActiveRender = false,
+		Drawing = false,
+		HoveringOverGui = false,
+		GlobalRenders = {},
+		P1,P2,B=nil,nil,nil,
+		DOKILL = false,
+		Selected = {},
+		BoldDrawing = false,
+		ExtremeRandom = false,
+		ExtremeRandomLoop = false,
+		ExtremeRandomOrigin = nil,
+		Headshot = false,
+		HeadshotLoop = false,
+		Star = false,
+		StarLoop = false,
+		Circle = false,
+		CircleLoop = false,
+		FullTerror = false,
+		FullTerrorLoop = false,
+		Veto = false,
+		VetoLoop = false,
+		__loops = {}
+	}
+
+	-- ========= LOOP MANAGEMENT ==========
+	local function stopLoop(name)
+		if DrawSettings.__loops[name] then
+			DrawSettings.__loops[name].running = false
+			DrawSettings.__loops[name] = nil
+		end
+	end
+	local function startLoop(name, fn)
+		stopLoop(name)
+		local loop = {running=true}
+		DrawSettings.__loops[name]=loop
+		task.spawn(function()
+			fn(loop)
+		end)
+	end
+
+	-- ========= UI CONSTRUCTION (WORKING COLLAPSIBLE SECTIONS + SETTINGS) =========
+	local DRAWING_TOOL = Instance.new("ScreenGui")
+	local MAINDRAW = Instance.new("Frame")
+	local UICorner = Instance.new("UICorner")
+	local UIStroke = Instance.new("UIStroke")
+	local TitleLabel = Instance.new("TextLabel")
+	local ButtonPanel = Instance.new("Frame")
+	local ButtonListLayout = Instance.new("UIListLayout")
+	local SectionHeaders = {}
+	local SectionButtons = {}
+	local Collapsed = {}
+
+	local function makeSectionHeader(name, text, color)
+		local frame = Instance.new("TextButton")
+		frame.Name = name.."_SectionHeader"
+		frame.Size = UDim2.new(1, 0, 0, 24)
+		frame.BackgroundColor3 = color or Color3.fromRGB(35, 35, 53)
+		frame.BackgroundTransparency = 0.11
+		frame.BorderSizePixel = 0
+		frame.AutoButtonColor = true
+		local lbl = Instance.new("TextLabel")
+		lbl.Name = "HeaderText"
+		lbl.Parent = frame
+		lbl.BackgroundTransparency = 1
+		lbl.Font = Enum.Font.GothamBold
+		lbl.Text = text
+		lbl.TextColor3 = Color3.fromRGB(210, 210, 255)
+		lbl.TextStrokeTransparency = 0.8
+		lbl.TextScaled = true
+		lbl.Size = UDim2.new(1, -20, 1, 0)
+		lbl.Position = UDim2.new(0, 20, 0, 0)
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		local arrow = Instance.new("TextLabel")
+		arrow.Name = "Arrow"
+		arrow.Parent = frame
+		arrow.BackgroundTransparency = 1
+		arrow.Position = UDim2.new(0, 0, 0, 0)
+		arrow.Size = UDim2.new(0, 22, 1, 0)
+		arrow.Font = Enum.Font.GothamBlack
+		arrow.Text = "▼"
+		arrow.TextColor3 = Color3.fromRGB(140, 140, 180)
+		arrow.TextScaled = true
+		arrow.TextXAlignment = Enum.TextXAlignment.Center
+		arrow.TextYAlignment = Enum.TextYAlignment.Center
+		return frame, lbl, arrow
+	end
+
+	local function makeButton(name, text, color)
+		local btn = Instance.new("TextButton")
+		btn.Name = name
+		btn.BackgroundColor3 = color or Color3.fromRGB(89, 89, 110)
+		btn.BackgroundTransparency = 0.36
+		btn.BorderSizePixel = 0
+		btn.Size = UDim2.new(1, 0, 0, 26)
+		btn.Font = Enum.Font.GothamBold
+		btn.Text = text
+		btn.TextColor3 = Color3.fromRGB(225, 225, 255)
+		btn.TextStrokeTransparency = 0.7
+		btn.TextScaled = true
+		btn.TextSize = 14
+		btn.TextWrapped = true
+		btn.AutoButtonColor = true
+		local UIC = Instance.new("UICorner",btn)
+		UIC.CornerRadius = UDim.new(0, 7)
+		return btn
+	end
+
+	-- Feature grouping
+	local Sections = {
+		{"Drawing", Color3.fromRGB(74, 130, 255), {
+			"ActivateDrawing", "BoldDrawingButton"
+		}},
+		{"Terror+", Color3.fromRGB(255, 80, 120), {
+			"FullTerrorButton", "FullTerrorLoopButton"
+		}},
+		{"Shapes", Color3.fromRGB(255, 223, 74), {
+			"StarButton", "StarLoopButton", "CircleButton", "CircleLoopButton"
+		}},
+		{"Fun", Color3.fromRGB(255, 130, 74), {
+			"ExtremeRandomButton", "ExtremeRandomLoopButton"
+		}},
+		{"PvP", Color3.fromRGB(74, 172, 255), {
+			"HeadshotButton", "HeadshotLoopButton"
+		}},
+		{"VETO", Color3.fromRGB(222, 74, 255), {
+			"VetoButton", "VetoLoopButton"
+		}},
+		{"System", Color3.fromRGB(89, 170, 89), {
+			"ActivateButton"
+		}}
+	}
+
+	-- Button Instances
+	local Buttons = {}
+	Buttons.ActivateButton = makeButton("ActivateButton", "START RENDER", Color3.fromRGB(89, 170, 89))
+	Buttons.ActivateDrawing = makeButton("ActivateDrawing", "START DRAWING", Color3.fromRGB(89, 89, 130))
+	Buttons.BoldDrawingButton = makeButton("BoldDrawingButton", "BOLD DRAWING: OFF", Color3.fromRGB(255, 209, 74))
+	Buttons.StarButton = makeButton("StarButton", "DRAW STAR", Color3.fromRGB(255, 223, 74))
+	Buttons.StarLoopButton = makeButton("StarLoopButton", "STAR LOOP: OFF", Color3.fromRGB(255, 223, 74))
+	Buttons.CircleButton = makeButton("CircleButton", "DRAW CIRCLE", Color3.fromRGB(174, 255, 74))
+	Buttons.CircleLoopButton = makeButton("CircleLoopButton", "CIRCLE LOOP: OFF", Color3.fromRGB(174, 255, 74))
+	Buttons.ExtremeRandomButton = makeButton("ExtremeRandomButton", "EXTREME RANDOM: OFF", Color3.fromRGB(255, 130, 74))
+	Buttons.ExtremeRandomLoopButton = makeButton("ExtremeRandomLoopButton", "EXT. RANDOM LOOP: OFF", Color3.fromRGB(255, 130, 74))
+	Buttons.HeadshotButton = makeButton("HeadshotButton", "HEADSHOT ALL: OFF", Color3.fromRGB(74, 172, 255))
+	Buttons.HeadshotLoopButton = makeButton("HeadshotLoopButton", "HEADSHOT LOOP: OFF", Color3.fromRGB(74, 172, 255))
+	Buttons.FullTerrorButton = makeButton("FullTerrorButton", "TERROR+ : OFF", Color3.fromRGB(255, 80, 120))
+	Buttons.FullTerrorLoopButton = makeButton("FullTerrorLoopButton", "TERROR+ LOOP: OFF", Color3.fromRGB(255, 80, 120))
+	Buttons.VetoButton = makeButton("VetoButton", "POP VETO", Color3.fromRGB(222, 74, 255))
+	Buttons.VetoLoopButton = makeButton("VetoLoopButton", "VETO LOOP: OFF", Color3.fromRGB(222, 74, 255))
+
+	DRAWING_TOOL.Name = "DRAWING_TOOL"
+	DRAWING_TOOL.Parent = (game:GetService("CoreGui") or gethui and gethui())
+	DRAWING_TOOL.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	MAINDRAW.Name = "MAINDRAW"
+	MAINDRAW.Parent = DRAWING_TOOL
+	MAINDRAW.BackgroundColor3 = Color3.fromRGB(23, 23, 30)
+	MAINDRAW.BackgroundTransparency = 0.1
+	MAINDRAW.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	MAINDRAW.BorderSizePixel = 0
+	MAINDRAW.Position = UDim2.new(0.2, 0, 0.18, 0)
+	MAINDRAW.Size = UDim2.new(0.31, 0, 0.725, 0) -- more compact for new UI
+
+	UIStroke.Color = Color3.fromRGB(207, 207, 255)
+	UIStroke.Thickness = 2.7
+	UIStroke.Transparency = 0.45
+	UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	UIStroke.Parent = MAINDRAW
+
+	UICorner.CornerRadius = UDim.new(0, 13)
+	UICorner.Parent = MAINDRAW
+
+	TitleLabel.Name = "TitleLabel"
+	TitleLabel.Parent = MAINDRAW
+	TitleLabel.BackgroundTransparency = 1
+	TitleLabel.Position = UDim2.new(0.03, 0, 0.008, 0)
+	TitleLabel.Size = UDim2.new(0.8, 0, 0.07, 0)
+	TitleLabel.Font = Enum.Font.GothamBlack
+	TitleLabel.Text = "⭐ H17S3 Drawing Tool - Terror+ Long 200 High ⭐"
+	TitleLabel.TextColor3 = Color3.fromRGB(225, 225, 255)
+	TitleLabel.TextStrokeTransparency = 0.7
+	TitleLabel.TextScaled = true
+	TitleLabel.TextSize = 22
+	TitleLabel.TextWrapped = true
+	TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	ButtonPanel.Name = "ButtonPanel"
+	ButtonPanel.Parent = MAINDRAW
+	ButtonPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	ButtonPanel.BackgroundTransparency = 0.19
+	ButtonPanel.Position = UDim2.new(0.025, 0, 0.12, 0)
+	ButtonPanel.Size = UDim2.new(0.43, 0, 0.83, 0)
+	ButtonPanel.BorderSizePixel = 0
+
+	ButtonListLayout.Parent = ButtonPanel
+	ButtonListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ButtonListLayout.Padding = UDim.new(0, 2)
+
+	for i, sec in ipairs(Sections) do
+		local sname, scol, btns = sec[1], sec[2], sec[3]
+		local header, lbl, arrow = makeSectionHeader(sname, sname, scol)
+		header.LayoutOrder = i*1000
+		header.Parent = ButtonPanel
+		SectionHeaders[sname] = header
+		SectionButtons[sname] = {}
+		Collapsed[sname] = false
+		for _, bname in ipairs(btns) do
+			local btn = Buttons[bname]
+			if btn then
+				btn.LayoutOrder = i*1000 + #SectionButtons[sname] + 1
+				btn.Parent = ButtonPanel
+				SectionButtons[sname][#SectionButtons[sname]+1] = btn
+				btn.Visible = true
+			end
+		end
+		header.MouseButton1Click:Connect(function()
+			Collapsed[sname] = not Collapsed[sname]
+			arrow.Text = Collapsed[sname] and "►" or "▼"
+			for _,btn in ipairs(SectionButtons[sname]) do
+				btn.Visible = not Collapsed[sname]
+			end
+		end)
+	end
+
+	-- Right panel (Logs + System)
+	local CloseButton = Instance.new("ImageButton")
+	local SettingsButton = Instance.new("ImageButton")
+	local BulletsLogs = Instance.new("ScrollingFrame")
+	local UIStroke_4 = Instance.new("UIStroke")
+	local UIListLayout = Instance.new("UIListLayout")
+	local tempdraw = Instance.new("TextButton")
+	local closedraw = Instance.new("ImageButton")
+	local SETTINGS = Instance.new("Frame")
+	local UIStroke_5 = Instance.new("UIStroke")
+	local UICorner_4 = Instance.new("UICorner")
+	local REFRESHRATE = Instance.new("TextBox")
+	local TextLabel_2 = Instance.new("TextLabel")
+	local DODAMAGE = Instance.new("TextButton")
+	local TextLabel_3 = Instance.new("TextLabel")
+
+	CloseButton.Name = "CloseButton"
+	CloseButton.Parent = MAINDRAW
+	CloseButton.BackgroundTransparency = 1.0
+	CloseButton.Position = UDim2.new(0.94, 0, 0.02, 0)
+	CloseButton.Size = UDim2.new(0.045, 0, 0.045, 0)
+	CloseButton.Image = "rbxassetid://16888018114"
+	CloseButton.ImageColor3 = Color3.fromRGB(200, 120, 120)
+
+	SettingsButton.Name = "SettingsButton"
+	SettingsButton.Parent = MAINDRAW
+	SettingsButton.BackgroundTransparency = 1.0
+	SettingsButton.Position = UDim2.new(0.88, 0, 0.02, 0)
+	SettingsButton.Size = UDim2.new(0.045, 0, 0.045, 0)
+	SettingsButton.Image = "rbxassetid://1203479768"
+	SettingsButton.ImageColor3 = Color3.fromRGB(160, 175, 200)
+
+	BulletsLogs.Name = "BulletsLogs"
+	BulletsLogs.Parent = MAINDRAW
+	BulletsLogs.Active = true
+	BulletsLogs.BackgroundColor3 = Color3.fromRGB(170, 170, 170)
+	BulletsLogs.BackgroundTransparency = 0.97
+	BulletsLogs.BorderSizePixel = 0
+	BulletsLogs.Position = UDim2.new(0.48, 0, 0.12, 0)
+	BulletsLogs.Size = UDim2.new(0.49, 0, 0.83, 0)
+	BulletsLogs.CanvasSize = UDim2.new(0, 0, 25, 0)
+	BulletsLogs.ScrollBarThickness = 6
+
+	UIStroke_4.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	UIStroke_4.Color = Color3.fromRGB(158, 158, 158)
+	UIStroke_4.Transparency = 0.5
+	UIStroke_4.Parent = BulletsLogs
+	UIListLayout.Parent = BulletsLogs
+	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	UIListLayout.Padding = UDim.new(0, 5)
+
+	tempdraw.Name = "tempdraw"
+	tempdraw.Parent = DRAWING_TOOL
+	tempdraw.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	tempdraw.BackgroundTransparency = 0.97
+	tempdraw.BorderSizePixel = 0
+	tempdraw.Size = UDim2.new(1, 0, 0.003, 0)
+	tempdraw.Visible = false
+	tempdraw.Font = Enum.Font.SourceSans
+	tempdraw.Text = "BULLET #1"
+	tempdraw.TextColor3 = Color3.fromRGB(209, 209, 209)
+	tempdraw.TextSize = 14
+	local UIStroke_6 = Instance.new("UIStroke")
+	UIStroke_6.Transparency = 0.62
+	UIStroke_6.Parent = tempdraw
+	local UIStroke_7 = Instance.new("UIStroke")
+	UIStroke_7.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	UIStroke_7.Color = Color3.fromRGB(255, 255, 255)
+	UIStroke_7.Transparency = 0.62
+	UIStroke_7.Parent = tempdraw
+
+	closedraw.Name = "closedraw"
+	closedraw.Parent = tempdraw
+	closedraw.BackgroundTransparency = 1.0
+	closedraw.Position = UDim2.new(0.879, 0, 0.09, 0)
+	closedraw.Size = UDim2.new(1, 0, 0.8, 0)
+	closedraw.Image = "rbxassetid://16888018114"
+	closedraw.ImageColor3 = Color3.fromRGB(153, 153, 153)
+
+	SETTINGS.Name = "SETTINGS"
+	SETTINGS.Parent = MAINDRAW
+	SETTINGS.BackgroundColor3 = Color3.fromRGB(36, 36, 44)
+	SETTINGS.BackgroundTransparency = 0.12
+	SETTINGS.BorderSizePixel = 0
+	SETTINGS.Position = UDim2.new(1.03, 0, 0.01, 0)
+	SETTINGS.Size = UDim2.new(0.63, 0, 0.45, 0)
+	SETTINGS.Visible = false
+
+	UIStroke_5.Color = Color3.fromRGB(150, 200, 255)
+	UIStroke_5.Transparency = 0.37
+	UIStroke_5.Parent = SETTINGS
+	UICorner_4 = Instance.new("UICorner")
+	UICorner_4.CornerRadius = UDim.new(0, 7)
+	UICorner_4.Parent = SETTINGS
+
+	REFRESHRATE.Name = "REFRESHRATE"
+	REFRESHRATE.Parent = SETTINGS
+	REFRESHRATE.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	REFRESHRATE.BackgroundTransparency = 0.93
+	REFRESHRATE.BorderSizePixel = 0
+	REFRESHRATE.Position = UDim2.new(0.078, 0, 0.16, 0)
+	REFRESHRATE.Size = UDim2.new(0.837, 0, 0.18, 0)
+	REFRESHRATE.ClearTextOnFocus = false
+	REFRESHRATE.Font = Enum.Font.SourceSans
+	REFRESHRATE.PlaceholderText = "REFRESH RATE"
+	REFRESHRATE.Text = "0.7"
+	REFRESHRATE.TextColor3 = Color3.fromRGB(21, 255, 56)
+	REFRESHRATE.TextSize = 14
+	TextLabel_2 = Instance.new("TextLabel")
+	TextLabel_2.Parent = REFRESHRATE
+	TextLabel_2.BackgroundTransparency = 1
+	TextLabel_2.Position = UDim2.new(0.193, 0, -0.86, 0)
+	TextLabel_2.Size = UDim2.new(0, 97, 0, 18)
+	TextLabel_2.Font = Enum.Font.SourceSans
+	TextLabel_2.Text = "REFRESH RATE"
+	TextLabel_2.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel_2.TextSize = 14
+
+	DODAMAGE.Name = "DODAMAGE"
+	DODAMAGE.Parent = SETTINGS
+	DODAMAGE.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	DODAMAGE.BackgroundTransparency = 0.93
+	DODAMAGE.BorderSizePixel = 0
+	DODAMAGE.Position = UDim2.new(0.078, 0, 0.45, 0)
+	DODAMAGE.Size = UDim2.new(0.837, 0, 0.18, 0)
+	DODAMAGE.Font = Enum.Font.SourceSans
+	DODAMAGE.Text = "DO KILL"
+	DODAMAGE.TextColor3 = Color3.fromRGB(255, 75, 78)
+	DODAMAGE.TextSize = 14
+	TextLabel_3 = Instance.new("TextLabel")
+	TextLabel_3.Parent = DODAMAGE
+	TextLabel_3.BackgroundTransparency = 1
+	TextLabel_3.Position = UDim2.new(0.037, 0, -0.82, 0)
+	TextLabel_3.Size = UDim2.new(0.93, 0, 0.82, 0)
+	TextLabel_3.Font = Enum.Font.SourceSans
+	TextLabel_3.Text = "DAMAGE WHEN TOUCHED"
+	TextLabel_3.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel_3.TextScaled = true
+	TextLabel_3.TextSize = 14
+	TextLabel_3.TextWrapped = true
+
+	-- SETTINGS BUTTON LOGIC
+	SettingsButton.MouseButton1Click:Connect(function()
+		SETTINGS.Visible = not SETTINGS.Visible
+	end)
+
+	REFRESHRATE.FocusLost:Connect(function()
+		if not tonumber(REFRESHRATE.Text) or (tonumber(REFRESHRATE.Text) and tonumber(REFRESHRATE.Text))<.2 then
+			REFRESHRATE.Text = "0.7"
+		end
+	end)
+
+	DODAMAGE.MouseButton1Click:Connect(function()
+		DrawSettings.DOKILL = not DrawSettings.DOKILL
+		DODAMAGE.TextColor3 = DrawSettings.DOKILL and Color3.fromRGB(73, 255, 125) or Color3.fromRGB(255, 75, 78)
+	end)
+
+	-- ========== DRAW FUNCTIONS ==========
+
+	-- Draws a five-pointed star
+	local function drawStar(center, bold)
+		local args = {}
+		local radius = 18
+		local starPoints = 5
+		local pts = {}
+		for i=1,starPoints do
+			local angle = math.rad(72*(i-1) - 90)
+			pts[i] = center + Vector3.new(math.cos(angle)*radius,0,math.sin(angle)*radius)
+		end
+		for i=1,starPoints do
+			local from = pts[i]
+			local to = pts[((i+2-1)%starPoints)+1]
+			if bold then
+				local dir = (to-from)
+				local perp
+				if math.abs(dir.Unit.Y) < 0.99 then
+					perp = dir.Unit:Cross(Vector3.new(0,1,0)).Unit
+				else
+					perp = dir.Unit:Cross(Vector3.new(1,0,0)).Unit
+				end
+				local thickness = 2.5
+				local count = 16
+				for j=1,count do
+					local offset = (((j-1)/(count-1))-0.5) * thickness
+					local startOffset = from + perp * offset
+					local endOffset = to + perp * offset
+					table.insert(args, {START=startOffset,END=endOffset})
+				end
+			else
+				table.insert(args, {START=from,END=to})
+			end
+		end
+		Fire_Replicated_Bullet(args, false)
+	end
+
+	-- Draws a circle using rays (for completeness)
+	local function drawCircle(center)
+		local args = {}
+		local radius = 15
+		local n = 32
+		for i=1,n do
+			local angle1 = math.rad((i-1)*360/n)
+			local angle2 = math.rad((i% n)*360/n)
+			local from = center + Vector3.new(math.cos(angle1)*radius,0,math.sin(angle1)*radius)
+			local to = center + Vector3.new(math.cos(angle2)*radius,0,math.sin(angle2)*radius)
+			table.insert(args,{START=from,END=to})
+		end
+		Fire_Replicated_Bullet(args, false)
+	end
+
+	-- ========= TERROR+ LONG STRAIGHT 200 STARS HIGH ABOVE ==========
+	local function drawFullTerror()
+		local char = plr.Character
+		local head = char and char:FindFirstChild("Head")
+		local root = char and char.PrimaryPart or head
+		if not root then return end
+		local origin = root.Position
+		local fwd = char.PrimaryPart and char.PrimaryPart.CFrame.LookVector or Vector3.new(0,0,1)
+		local right = char.PrimaryPart and char.PrimaryPart.CFrame.RightVector or Vector3.new(1,0,0)
+		local baseY = (head and head.Position.Y or origin.Y) + 12
+		local heights = {0, 6, 12, 18}
+		for _, yOffset in ipairs(heights) do
+			for i=1,50 do
+				local dist = i*4
+				drawStar(Vector3.new(origin.X, baseY + yOffset, origin.Z) + fwd*dist, false)
+				drawStar(Vector3.new(origin.X, baseY + yOffset, origin.Z) - fwd*dist, false)
+				drawStar(Vector3.new(origin.X, baseY + yOffset, origin.Z) + right*dist, false)
+				drawStar(Vector3.new(origin.X, baseY + yOffset, origin.Z) - right*dist, false)
+			end
+		end
+	end
+
+	-- ========= VETO FEATURE (1.5x smaller, clean, vertical to player's look direction) ==========
+	local VETO_LETTERS = {
+		V = {
+			{Vector3.new(0,1.6,0), Vector3.new(0.5,0,0)},
+			{Vector3.new(1,1.6,0), Vector3.new(0.5,0,0)},
+		},
+		E = {
+			{Vector3.new(0,0,0),Vector3.new(0,1.6,0)},
+			{Vector3.new(0,1.6,0),Vector3.new(1,1.6,0)},
+			{Vector3.new(0,0.8,0),Vector3.new(0.8,0.8,0)},
+			{Vector3.new(0,0,0),Vector3.new(1,0,0)},
+		},
+		T = {
+			{Vector3.new(0.5,0,0),Vector3.new(0.5,1.6,0)},
+			{Vector3.new(0,1.6,0),Vector3.new(1,1.6,0)},
+		},
+		O = (function()
+			local circle = {}
+			local n = 16
+			local r = 0.8
+			local cx, cy = 0.5, 0.8
+			for i=1,n do
+				local a1 = math.rad((i-1)*360/n)
+				local a2 = math.rad((i% n)*360/n)
+				local p1 = Vector3.new(cx + math.cos(a1)*r, cy + math.sin(a1)*r, 0)
+				local p2 = Vector3.new(cx + math.cos(a2)*r, cy + math.sin(a2)*r, 0)
+				table.insert(circle, {p1, p2})
+			end
+			return circle
+		end)(),
+	}
+
+	local function drawVetoWord(headPosition, facingCF)
+		local args = {}
+		local scale = 0.47 -- 1.5x smaller than previous 0.7
+		local letter_gap = 0.35
+		local total_letters = 4
+		local word_width = ((total_letters-1) * (1+letter_gap) + 1) * scale
+		local local_offset = Vector3.new(-word_width/2, 1.01, 0)
+		local facing = facingCF or CFrame.new()
+		for i,letter in ipairs({'V','E','T','O'}) do
+			local ldef = VETO_LETTERS[letter]
+			local xShift = (i-1)*(1+letter_gap)*scale
+			for _,seg in ipairs(ldef) do
+				local p1 = (Vector3.new(xShift + seg[1].X*scale, seg[1].Y*scale, 0) + local_offset)
+				local p2 = (Vector3.new(xShift + seg[2].X*scale, seg[2].Y*scale, 0) + local_offset)
+				local p1w = (facing * p1) + headPosition
+				local p2w = (facing * p2) + headPosition
+				table.insert(args, {START=p1w, END=p2w})
+			end
+		end
+		Fire_Replicated_Bullet(args, false)
+	end
+
+	-- ========== BUTTON HANDLERS + LOOPS ==========
+	Buttons.StarButton.MouseButton1Click:Connect(function()
+		drawStar(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new(), false)
+	end)
+	Buttons.StarLoopButton.MouseButton1Click:Connect(function()
+		DrawSettings.StarLoop = not DrawSettings.StarLoop
+		if DrawSettings.StarLoop then
+			Buttons.StarLoopButton.Text = "STAR LOOP: ON"
+			startLoop("StarLoop", function(loop)
+				while loop.running do
+					drawStar(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new(), false)
+					for _=1,10 do if not loop.running then return end task.wait(0.05) end
+				end
+			end)
+		else
+			Buttons.StarLoopButton.Text = "STAR LOOP: OFF"
+			stopLoop("StarLoop")
+		end
+	end)
+	Buttons.CircleButton.MouseButton1Click:Connect(function()
+		drawCircle(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new())
+	end)
+	Buttons.CircleLoopButton.MouseButton1Click:Connect(function()
+		DrawSettings.CircleLoop = not DrawSettings.CircleLoop
+		if DrawSettings.CircleLoop then
+			Buttons.CircleLoopButton.Text = "CIRCLE LOOP: ON"
+			startLoop("CircleLoop", function(loop)
+				while loop.running do
+					drawCircle(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new())
+					for _=1,10 do if not loop.running then return end task.wait(0.05) end
+				end
+			end)
+		else
+			Buttons.CircleLoopButton.Text = "CIRCLE LOOP: OFF"
+			stopLoop("CircleLoop")
+		end
+	end)
+
+	Buttons.FullTerrorButton.MouseButton1Click:Connect(function()
+		drawFullTerror()
+	end)
+	Buttons.FullTerrorLoopButton.MouseButton1Click:Connect(function()
+		DrawSettings.FullTerrorLoop = not DrawSettings.FullTerrorLoop
+		if DrawSettings.FullTerrorLoop then
+			Buttons.FullTerrorLoopButton.Text = "TERROR+ LOOP: ON"
+			startLoop("TerrorLoop", function(loop)
+				while loop.running do
+					drawFullTerror()
+					for _=1,10 do if not loop.running then return end task.wait(0.05) end
+				end
+			end)
+		else
+			Buttons.FullTerrorLoopButton.Text = "TERROR+ LOOP: OFF"
+			stopLoop("TerrorLoop")
+		end
+	end)
+
+	Buttons.VetoButton.MouseButton1Click:Connect(function()
+		local char = plr.Character
+		local head = char and char:FindFirstChild("Head")
+		local root = char and char.PrimaryPart
+		if head and root then
+			local look = root.CFrame.LookVector
+			local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+			local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+			drawVetoWord(head.Position, facingCF)
+		end
+	end)
+	Buttons.VetoLoopButton.MouseButton1Click:Connect(function()
+		DrawSettings.VetoLoop = not DrawSettings.VetoLoop
+		if DrawSettings.VetoLoop then
+			Buttons.VetoLoopButton.Text = "VETO LOOP: ON"
+			startLoop("VetoLoop", function(loop)
+				while loop.running do
+					local char = plr.Character
+					local head = char and char:FindFirstChild("Head")
+					local root = char and char.PrimaryPart
+					if head and root then
+						local look = root.CFrame.LookVector
+						local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+						local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+						drawVetoWord(head.Position, facingCF)
+					end
+					for _=1,8 do if not loop.running then return end task.wait(0.11) end
+				end
+			end)
+		else
+			Buttons.VetoLoopButton.Text = "VETO LOOP: OFF"
+			stopLoop("VetoLoop")
+		end
+	end)
+
+	Buttons.ExtremeRandomButton.MouseButton1Click:Connect(function()
+		Buttons.ExtremeRandomButton.Text = "CHOOSE ORIGIN..."
+		Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(255,255,125)
+		DrawSettings.ExtremeRandomOrigin = nil
+		local conn
+		conn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+			if gameProcessed then return end
+			if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+				local mouse = plr:GetMouse()
+				local pos = mouse.Hit.p
+				DrawSettings.ExtremeRandomOrigin = pos
+				Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: ON"
+				Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+				local args = {}
+				for i=1,50 do
+					local randomVec = pos + Vector3.new(
+						math.random(-150,150),
+						math.random(-75,75),
+						math.random(-150,150)
+					)
+					table.insert(args, {START=pos, END=randomVec})
+				end
+				Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+				wait(0.1)
+				Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: OFF"
+				Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(255, 130, 74)
+				conn:Disconnect()
+			end
+		end)
+	end)
+	Buttons.ExtremeRandomLoopButton.MouseButton1Click:Connect(function()
+		DrawSettings.ExtremeRandomLoop = not DrawSettings.ExtremeRandomLoop
+		if DrawSettings.ExtremeRandomLoop then
+			Buttons.ExtremeRandomLoopButton.Text = "EXT. RANDOM LOOP: ON"
+			Buttons.ExtremeRandomLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+			Buttons.ExtremeRandomButton.Text = "CHOOSE ORIGIN..."
+			Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(255,255,125)
+			DrawSettings.ExtremeRandomOrigin = nil
+			local conn
+			conn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+				if gameProcessed then return end
+				if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+					local mouse = plr:GetMouse()
+					local pos = mouse.Hit.p
+					DrawSettings.ExtremeRandomOrigin = pos
+					Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: ON"
+					Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+					startLoop("ExtremeRandomLoop", function(loop)
+						while loop.running do
+							local args = {}
+							for i=1,50 do
+								local randomVec = pos + Vector3.new(
+									math.random(-150,150),
+									math.random(-75,75),
+									math.random(-150,150)
+								)
+								table.insert(args, {START=pos, END=randomVec})
+							end
+							Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+							for _=1,10 do if not loop.running then return end task.wait(0.05) end
+						end
+					end)
+					conn:Disconnect()
+				end
+			end)
+		else
+			Buttons.ExtremeRandomLoopButton.Text = "EXT. RANDOM LOOP: OFF"
+			Buttons.ExtremeRandomLoopButton.TextColor3 = Color3.fromRGB(255, 130, 74)
+			Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: OFF"
+			Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(255, 130, 74)
+			stopLoop("ExtremeRandomLoop")
+		end
+	end)
+
+	Buttons.HeadshotButton.MouseButton1Click:Connect(function()
+		DrawSettings.Headshot = not DrawSettings.Headshot
+		if DrawSettings.Headshot then
+			Buttons.HeadshotButton.Text = "HEADSHOT ALL: ON"
+			Buttons.HeadshotButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+			local originY = 60
+			for _, player in ipairs(getOtherPlayers()) do
+				local head = player.Character and player.Character:FindFirstChild("Head")
+				if head then
+					local origin = head.Position + Vector3.new(0,originY,0)
+					local args = { {START=origin, END=head.Position, HIT=player} }
+					Fire_Replicated_Bullet(args, false)
+					task.spawn(function()
+						wait((originY/200)+0.08)
+						Fire_Replicated_Bullet(args, true)
+					end)
+				end
+			end
+			wait(0.01)
+			DrawSettings.Headshot = false
+			Buttons.HeadshotButton.Text = "HEADSHOT ALL: OFF"
+			Buttons.HeadshotButton.TextColor3 = Color3.fromRGB(74, 172, 255)
+		else
+			Buttons.HeadshotButton.Text = "HEADSHOT ALL: OFF"
+			Buttons.HeadshotButton.TextColor3 = Color3.fromRGB(74, 172, 255)
+		end
+	end)
+	Buttons.HeadshotLoopButton.MouseButton1Click:Connect(function()
+		DrawSettings.HeadshotLoop = not DrawSettings.HeadshotLoop
+		if DrawSettings.HeadshotLoop then
+			Buttons.HeadshotLoopButton.Text = "HEADSHOT LOOP: ON"
+			Buttons.HeadshotLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+			startLoop("HeadshotLoop", function(loop)
+				while loop.running do
+					local originY = 60
+					for _, player in ipairs(getOtherPlayers()) do
+						local head = player.Character and player.Character:FindFirstChild("Head")
+						if head then
+							local origin = head.Position + Vector3.new(0,originY,0)
+							local args = { {START=origin, END=head.Position, HIT=player} }
+							Fire_Replicated_Bullet(args, false)
+							task.spawn(function()
+								wait((originY/200)+0.08)
+								Fire_Replicated_Bullet(args, true)
+							end)
+						end
+					end
+					for _=1,12 do if not loop.running then return end task.wait(0.05) end
+				end
+			end)
+		else
+			Buttons.HeadshotLoopButton.Text = "HEADSHOT LOOP: OFF"
+			stopLoop("HeadshotLoop")
+		end
+	end)
+
+	Buttons.ActivateButton.MouseButton1Click:Connect(function()
+		DrawSettings.ActiveRender = not DrawSettings.ActiveRender
+		if DrawSettings.ActiveRender then
+			Buttons.ActivateButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+			Buttons.ActivateButton.Text = "RENDERING ACTIVE"
+			Buttons.ActivateDrawing.Text = "ACTIVATE DRAW"
+		else
+			Buttons.ActivateButton.TextColor3 = Color3.fromRGB(225, 225, 255)
+			Buttons.ActivateButton.Text = "START RENDER"
+		end
+	end)
+	Buttons.ActivateDrawing.MouseButton1Click:Connect(function()
+		DrawSettings.Drawing = not DrawSettings.Drawing
+		if DrawSettings.Drawing then
+			Buttons.ActivateButton.TextColor3 = Color3.fromRGB(158, 76, 91)
+			Buttons.ActivateDrawing.Text = "DRAWING [CLICK TWO POINTS]"
+		else
+			Buttons.ActivateButton.TextColor3 = Color3.fromRGB(225, 225, 255)
+			Buttons.ActivateDrawing.Text = "START DRAWING"
+		end
+	end)
+	Buttons.BoldDrawingButton.MouseButton1Click:Connect(function()
+		DrawSettings.BoldDrawing = not DrawSettings.BoldDrawing
+		if DrawSettings.BoldDrawing then
+			Buttons.BoldDrawingButton.Text = "BOLD DRAWING: ON"
+			Buttons.BoldDrawingButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+		else
+			Buttons.BoldDrawingButton.Text = "BOLD DRAWING: OFF"
+			Buttons.BoldDrawingButton.TextColor3 = Color3.fromRGB(255, 209, 74)
+		end
+	end)
+
+	CloseButton.MouseButton1Click:Connect(function()
+		for k,v in pairs(DrawSettings.__loops) do
+			v.running = false
+		end
+		DRAWING_TOOL:Destroy()
+	end)
+
+	-- ========== Drawing Logic (line draw) ==========
+	local function AddBulletToTable(Start,End,Bullet)
+		local TempButton = tempdraw:Clone()
+		local i = #DrawSettings.GlobalRenders+1
+		TempButton.Text = "Bullet #"..tostring(i)
+		TempButton.Parent = BulletsLogs
+		TempButton.Visible = true
+		TempButton.closedraw.MouseButton1Click:Connect(function()
+			DrawSettings.GlobalRenders[i].BULLET_INSTANCE:Destroy()
+			DrawSettings.GlobalRenders[i]=nil
+			TempButton:Destroy()
+		end)
+		local sel = false
+		TempButton.MouseButton1Click:Connect(function()
+			sel=not sel
+			if sel then
+				Bullet.Transparency = .1
+				Bullet.Color = Color3.new(0.12549, 1, 0.12549)
+				TempButton.BackgroundTransparency = .5
+				DrawSettings.Selected.Part = Bullet
+				DrawSettings.Selected.i = i
+			else
+				Bullet.Transparency = .93
+				DrawSettings.Selected.Part = nil
+				DrawSettings.Selected.i = nil
+				DrawSettings.Transparency = 0.950
+				Bullet.BrickColor = BrickColor.Yellow()
+				TempButton.BackgroundTransparency = 0.950
+			end
+		end)
+		DrawSettings.GlobalRenders[i]={
+			["START"] = Start,
+			["END"] = End,
+			["BULLET_INSTANCE"] = Bullet
+		}
+	end
+	game:GetService("UserInputService").InputBegan:Connect(function(Input,c)
+		if not c  and Input.KeyCode == Enum.KeyCode.R then
+			DrawSettings.Rotating = true
+		end
+	end)
+	game:GetService("UserInputService").InputEnded:Connect(function(Input,c)
+		if not c and Input.KeyCode == Enum.KeyCode.R then
+			DrawSettings.Rotating = false
+		end
+		if not c and Input.UserInputType == Enum.UserInputType.Touch or Input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+			if DrawSettings.Drawing and DrawSettings.P1 and not DrawSettings.P2 then
+				DrawSettings.P2 = game:GetService("Players").LocalPlayer:GetMouse().Hit
+				return
+			end
+			if DrawSettings.Drawing and not DrawSettings.P1 then
+				DrawSettings.P1 = game:GetService("Players").LocalPlayer:GetMouse().Hit
+				DrawSettings.B = Instance.new("Part",workspace)
+				game:GetService("Players").LocalPlayer:GetMouse().TargetFilter = DrawSettings.B
+				local distance = (game:GetService("Players").LocalPlayer:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+				local mesh = Instance.new("BlockMesh",DrawSettings.B)
+				mesh.Scale = Vector3.new(.5,.5,1)
+				DrawSettings.B.Name = "RayPart"
+				DrawSettings.B.BrickColor = BrickColor.Yellow()
+				DrawSettings.B.Material = Enum.Material.Neon
+				DrawSettings.B.Anchored = true
+				DrawSettings.B.CanCollide = false
+				DrawSettings.B.Transparency = .5
+				DrawSettings.B.formFactor = Enum.FormFactor.Custom
+				DrawSettings.B.Size = Vector3.new(.2,.2,distance)
+				DrawSettings.B.CFrame = CFrame.new(game:GetService("Players").LocalPlayer:GetMouse().Hit.p,DrawSettings.P1.Position) * CFrame.new(0,0,-distance/2)
+				return
+			end
+		end
+	end)
+	Instance.new("UIDragDetector", MAINDRAW)
+	task.spawn(function()
+		while task.wait() do
+			if tonumber(REFRESHRATE.Text) then
+				wait(tonumber(REFRESHRATE.Text) or .7)
+				if #DrawSettings.GlobalRenders>0 and DrawSettings.ActiveRender then
+					Fire_Replicated_Bullet(DrawSettings.GlobalRenders,DrawSettings.DOKILL)
+				end
+			end
+		end
+	end)
+	task.spawn(function()
+		while wait() do
+			if DrawSettings.Selected and DrawSettings.Selected.Part and DrawSettings.Rotating then
+				-- Rotation logic placeholder
+			end
+		end
+	end)
+	local RStep = game:service'RunService'.RenderStepped
+	while RStep:Wait() do
+		if DrawSettings.Drawing then
+			repeat task.wait() until DrawSettings.B
+			repeat task.wait()
+				local distance = (game:GetService("Players").LocalPlayer:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+				DrawSettings.B.Size = Vector3.new(.2,.2,distance)
+				DrawSettings.B.CFrame = CFrame.new(game:GetService("Players").LocalPlayer:GetMouse().Hit.p,DrawSettings.P1.Position) * CFrame.new(0,0,-distance/2)
+			until DrawSettings.P2
+			if DrawSettings.BoldDrawing then
+				local origin = DrawSettings.P1.p
+				local target = DrawSettings.P2.p
+				local dir = (target-origin)
+				local perp
+				if math.abs(dir.Unit.Y) < 0.99 then
+					perp = dir.Unit:Cross(Vector3.new(0,1,0)).Unit
+				else
+					perp = dir.Unit:Cross(Vector3.new(1,0,0)).Unit
+				end
+				local thickness = 1.2
+				local count = 20
+				for i=1,count do
+					local offset = (((i-1)/(count-1))-0.5) * thickness
+					local startOffset = origin + perp * offset
+					local endOffset = target + perp * offset
+					local bullet = Instance.new("Part",workspace)
+					local mesh = Instance.new("BlockMesh",bullet)
+					mesh.Scale = Vector3.new(.5,.5,1)
+					bullet.Name = "RayPart"
+					bullet.BrickColor = BrickColor.Yellow()
+					bullet.Material = Enum.Material.Neon
+					bullet.Anchored = true
+					bullet.CanCollide = false
+					bullet.Transparency = .5
+					bullet.formFactor = Enum.FormFactor.Custom
+					local distance = (endOffset-startOffset).magnitude
+					bullet.Size = Vector3.new(.2,.2,distance)
+					bullet.CFrame = CFrame.new(endOffset,startOffset) * CFrame.new(0,0,-distance/2)
+					game:GetService("Debris"):AddItem(bullet,.25)
+					AddBulletToTable(startOffset,endOffset,bullet)
+					bullet.Transparency = .93
+				end
+				DrawSettings.B:Destroy()
+			else
+				AddBulletToTable(DrawSettings.P1.p,DrawSettings.P2.p,DrawSettings.B)
+				DrawSettings.B.Transparency = .93
+			end
+			DrawSettings.B = nil
+			DrawSettings.P1 = nil
+			DrawSettings.P2 = nil
+		end
+	end
+end
