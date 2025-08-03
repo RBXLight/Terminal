@@ -3756,6 +3756,18 @@ local OnCommand = function(text)
 		elseif not DaPlayer then
 			Notif("Error", "Not a valid player(s)")
 		end
+  elseif cm("shield") then
+  local s
+
+for i, v in pairs(game.Players:GetPlayers()) do
+    if v:FindFirstChild("Backpack") and (v.Backpack:FindFirstChild("Riot Shield") or v.Character and v.Character:FindFirstChild("Riot Shield")) then
+        s = v.Backpack:FindFirstChild("Riot Shield") or v.Character:FindFirstChild("Riot Shield")
+    end
+end
+
+for i = 1, 4 do
+    workspace.Remote.equipShield:fireServer(s)
+end
 	elseif cm("shootkill") or cm("skill") then
 		local ar = Args[2] and Args[2]:lower()
 		if ar then
@@ -9960,6 +9972,7 @@ task.spawn(function()
 	AddList("fard / fart [plr]", "Silent but deadly fart", false) --V, Haha funny fart joke please laugh sussy amogus skibidi toilet
 	AddList("carwalk / weldcar", "Makes you walk while a car is welded to your character", false) --V
 	AddList("troll / tro [plr,random]", "Troll a player by fake punchsounds", false) --V
+        AddList("shield", "Grabs a Riot Shield", false)
 
 	AddList("TELEPORTS", false, true) --TELEPORT PLACE(S)
 	AddList("nexus / nex [plr or me]", "Teleports to the location: Nexus", false) --
