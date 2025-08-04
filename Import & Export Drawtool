@@ -1,0 +1,745 @@
+do
+	local plr = game:GetService("Players").LocalPlayer
+	local HttpService = game:GetService("HttpService")
+
+	local Fire_Replicated_Bullet = function(Args, DoDamage)
+		local Bullets = {}
+		for i, v in pairs(Args) do
+			local dist = (v.START - v.END).magnitude
+			local s = (dist / 1)
+			local vector = Vector3.new(math.random(-s, s) / 10, math.random(-s, s) / 10, math.random(-s, s) / 10)
+			local Ray = Ray.new(v.START, ((v.END + vector) - v.START).unit * 100000)
+			local position = v.END
+			local distance = (position - v.START).magnitude
+			local rayPart = Instance.new("Part", workspace)
+			local mesh = Instance.new("BlockMesh", rayPart)
+			mesh.Scale = Vector3.new(.5, .5, 1)
+			rayPart.Name = "RayPart"
+			rayPart.BrickColor = BrickColor.Yellow()
+			rayPart.Material = Enum.Material.Neon
+			rayPart.Anchored = true
+			rayPart.CanCollide = false
+			rayPart.Transparency = .5
+			rayPart.formFactor = Enum.FormFactor.Custom
+			rayPart.Size = Vector3.new(.2, .2, distance)
+			rayPart.CFrame = CFrame.new(position, v.START) * CFrame.new(0, 0, -distance / 2)
+			game:GetService("Debris"):AddItem(rayPart, .05)
+			local RealHit, RealPos = workspace:FindPartOnRay(Ray, plr.Character)
+			for i = 1, ((v.HIT and v.HIT:IsA("Player") and 9) or 1) do
+				Bullets[#Bullets + 1] = {
+					["RayObject"] = Ray,
+					["Distance"] = distance,
+					["Cframe"] = rayPart.CFrame,
+					["Hit"] = (v.HIT and v.HIT:IsA("Player") and v.HIT.Character.Head) or (DoDamage and RealHit) or workspace:FindFirstChildOfClass("Part"),
+				}
+			end
+		end
+		local Tool, Gun = ("Remington 870"), nil
+		repeat task.wait()
+			workspace.Remote.ItemHandler:InvokeServer{ Position = plr.Character:GetPivot().p, Parent = workspace.Prison_ITEMS:FindFirstChild(Tool, true) }
+			Gun = plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool)
+		until plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool) and plr.Character:FindFirstChildOfClass("Humanoid")
+		game:GetService("ReplicatedStorage"):WaitForChild("ShootEvent"):FireServer(Bullets, Gun)
+		game:GetService("ReplicatedStorage").ReloadEvent:FireServer(Gun)
+	end
+
+	local DrawSettings = {
+		ActiveRender = false, --// FIRING BULLETS
+		Drawing = false, --// IS DRAWING
+		HoveringOverGui = false, --// MOUSE ON GUI
+		GlobalRenders = {}, --// TABLE OF BULLETS
+		P1 = nil, P2 = nil, B = nil, --// POINT 1 & POINT 2
+		DOKILL = false, --//IF TARGET KILLS
+		Selected = {}, --//SELECTED BULLETS
+		FreeDrawActive = false, --// Free Draw Mode
+		FreeDrawDrawing = false, --// Is Free Drawing
+		FreeDrawLast = nil, --// Last point in free draw
+	}
+
+	local DRAWING_TOOL = Instance.new("ScreenGui")
+	local MAINDRAW = Instance.new("Frame")
+	local UIStroke = Instance.new("UIStroke")
+	local UICorner = Instance.new("UICorner")
+	local TextLabel = Instance.new("TextLabel")
+	local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
+	local ActivateButton = Instance.new("TextButton")
+	local UICorner_2 = Instance.new("UICorner")
+	local UIStroke_2 = Instance.new("UIStroke")
+	local ActivateButton_RENDER_UIStroke = Instance.new("UIStroke")
+	local UIAspectRatioConstraint_2 = Instance.new("UIAspectRatioConstraint")
+	local ActivateDrawing = Instance.new("TextButton")
+	local UICorner_3 = Instance.new("UICorner")
+	local ActivateButton_UIStroke = Instance.new("UIStroke")
+	local UIStroke_3 = Instance.new("UIStroke")
+	local UIAspectRatioConstraint_3 = Instance.new("UIAspectRatioConstraint")
+	local CloseButton = Instance.new("ImageButton")
+	local UIAspectRatioConstraint_4 = Instance.new("UIAspectRatioConstraint")
+	local BulletsLogs = Instance.new("ScrollingFrame")
+	local UIStroke_4 = Instance.new("UIStroke")
+	local UIListLayout = Instance.new("UIListLayout")
+	local UIAspectRatioConstraint_5 = Instance.new("UIAspectRatioConstraint")
+	local SettingsButton = Instance.new("ImageButton")
+	local UIAspectRatioConstraint_6 = Instance.new("UIAspectRatioConstraint")
+	local SETTINGS = Instance.new("Frame")
+	local UIStroke_5 = Instance.new("UIStroke")
+	local UICorner_4 = Instance.new("UICorner")
+	local REFRESHRATE = Instance.new("TextBox")
+	local TextLabel_2 = Instance.new("TextLabel")
+	local UIAspectRatioConstraint_7 = Instance.new("UIAspectRatioConstraint")
+	local DODAMAGE = Instance.new("TextButton")
+	local TextLabel_3 = Instance.new("TextLabel")
+	local UIAspectRatioConstraint_8 = Instance.new("UIAspectRatioConstraint")
+	local UIAspectRatioConstraint_9 = Instance.new("UIAspectRatioConstraint")
+	local UIAspectRatioConstraint_10 = Instance.new("UIAspectRatioConstraint")
+	local UIAspectRatioConstraint_11 = Instance.new("UIAspectRatioConstraint")
+	local tempdraw = Instance.new("TextButton")
+	local UIStroke_6 = Instance.new("UIStroke")
+	local UIStroke_7 = Instance.new("UIStroke")
+	local closedraw = Instance.new("ImageButton")
+	local UIAspectRatioConstraint_12 = Instance.new("UIAspectRatioConstraint")
+
+	-- Free Draw Button
+	local FreeDrawButton = Instance.new("TextButton")
+
+	-- Import/Export buttons
+	local ExportButton = Instance.new("TextButton")
+	local ImportButton = Instance.new("TextButton")
+	local ImportBox = Instance.new("TextBox")
+	local ExportBox = Instance.new("TextBox")
+
+	DRAWING_TOOL.Name = "DRAWING_TOOL"
+	DRAWING_TOOL.Parent = (game:GetService("CoreGui") or gethui())
+	DRAWING_TOOL.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	MAINDRAW.Name = "MAINDRAW"
+	MAINDRAW.Parent = DRAWING_TOOL
+	MAINDRAW.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	MAINDRAW.BackgroundTransparency = 0.050
+	MAINDRAW.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	MAINDRAW.BorderSizePixel = 0
+	MAINDRAW.Position = UDim2.new(0.198813051, 0, 0.453634083, 0)
+	MAINDRAW.Size = UDim2.new(0.256689787, 0, 0.368421048, 0)
+
+	UIStroke.Color = Color3.fromRGB(255, 255, 255)
+	UIStroke.Transparency = 0.730
+	UIStroke.Parent = MAINDRAW
+
+	UICorner.CornerRadius = UDim.new(0, 3)
+	UICorner.Parent = MAINDRAW
+
+	TextLabel.Parent = MAINDRAW
+	TextLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel.BackgroundTransparency = 1.000
+	TextLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	TextLabel.BorderSizePixel = 0
+	TextLabel.Position = UDim2.new(0.0325203091, 0, 0.0272108838, 0)
+	TextLabel.Size = UDim2.new(0.888030887, 0, 0.0510204099, 0)
+	TextLabel.Font = Enum.Font.SourceSans
+	TextLabel.Text = "H17S3'S DRAWING TOOL"
+	TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel.TextScaled = true
+	TextLabel.TextSize = 14.000
+	TextLabel.TextWrapped = true
+	TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	UIAspectRatioConstraint.Parent = TextLabel
+	UIAspectRatioConstraint.AspectRatio = 15.333
+
+	ActivateButton.Name = "ActivateButton"
+	ActivateButton.Parent = MAINDRAW
+	ActivateButton.BackgroundColor3 = Color3.fromRGB(89, 89, 89)
+	ActivateButton.BackgroundTransparency = 0.750
+	ActivateButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	ActivateButton.BorderSizePixel = 0
+	ActivateButton.Position = UDim2.new(0.0772200748, 0, 0.714285731, 0)
+	ActivateButton.Size = UDim2.new(0.845559835, 0, 0.105442174, 0)
+	ActivateButton.Font = Enum.Font.SourceSans
+	ActivateButton.Text = "START RENDING"
+	ActivateButton.TextColor3 = Color3.fromRGB(213, 213, 213)
+	ActivateButton.TextScaled = true
+	ActivateButton.TextSize = 14.000
+	ActivateButton.TextWrapped = true
+
+	UICorner_2.CornerRadius = UDim.new(0, 3)
+	UICorner_2.Parent = ActivateButton
+
+	UIStroke_2.Parent = ActivateButton
+
+	ActivateButton_RENDER_UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ActivateButton_RENDER_UIStroke.Color = Color3.fromRGB(158, 76, 91)
+	ActivateButton_RENDER_UIStroke.Parent = ActivateButton
+	ActivateButton_RENDER_UIStroke.Name = "ActivateButton_RENDER_UIStroke"
+
+	UIAspectRatioConstraint_2.Parent = ActivateButton
+	UIAspectRatioConstraint_2.AspectRatio = 7.065
+
+	ActivateDrawing.Name = "ActivateDrawing"
+	ActivateDrawing.Parent = MAINDRAW
+	ActivateDrawing.BackgroundColor3 = Color3.fromRGB(89, 89, 89)
+	ActivateDrawing.BackgroundTransparency = 0.750
+	ActivateDrawing.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	ActivateDrawing.BorderSizePixel = 0
+	ActivateDrawing.Position = UDim2.new(0.0772200748, 0, 0.860544205, 0)
+	ActivateDrawing.Size = UDim2.new(0.845559835, 0, 0.105442174, 0)
+	ActivateDrawing.Font = Enum.Font.SourceSans
+	ActivateDrawing.Text = "START DRAWING"
+	ActivateDrawing.TextColor3 = Color3.fromRGB(213, 213, 213)
+	ActivateDrawing.TextScaled = true
+	ActivateDrawing.TextSize = 14.000
+	ActivateDrawing.TextWrapped = true
+
+	UICorner_3.CornerRadius = UDim.new(0, 3)
+	UICorner_3.Parent = ActivateDrawing
+
+	ActivateButton_UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	ActivateButton_UIStroke.Color = Color3.fromRGB(158, 76, 91)
+	ActivateButton_UIStroke.Parent = ActivateDrawing
+	ActivateButton_UIStroke.Name = "ActivateButton_UIStroke"
+
+	UIStroke_3.Parent = ActivateDrawing
+
+	UIAspectRatioConstraint_3.Parent = ActivateDrawing
+	UIAspectRatioConstraint_3.AspectRatio = 7.065
+
+	-- Free Draw Button
+	FreeDrawButton.Name = "FreeDrawButton"
+	FreeDrawButton.Parent = MAINDRAW
+	FreeDrawButton.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
+	FreeDrawButton.BackgroundTransparency = 0.1
+	FreeDrawButton.BorderColor3 = Color3.fromRGB(0,0,0)
+	FreeDrawButton.BorderSizePixel = 0
+	FreeDrawButton.Position = UDim2.new(0.07, 0, 0.63, 0)
+	FreeDrawButton.Size = UDim2.new(0.845559835, 0, 0.075, 0)
+	FreeDrawButton.Font = Enum.Font.SourceSans
+	FreeDrawButton.Text = "FREE DRAW"
+	FreeDrawButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+	FreeDrawButton.TextScaled = true
+	FreeDrawButton.TextWrapped = true
+
+	CloseButton.Name = "CloseButton"
+	CloseButton.Parent = MAINDRAW
+	CloseButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	CloseButton.BackgroundTransparency = 1.000
+	CloseButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	CloseButton.BorderSizePixel = 0
+	CloseButton.Position = UDim2.new(0.895752907, 0, 0.0238095243, 0)
+	CloseButton.Size = UDim2.new(0.0694980696, 0, 0.0612244904, 0)
+	CloseButton.Image = "rbxassetid://16888018114"
+	CloseButton.ImageColor3 = Color3.fromRGB(185, 185, 185)
+
+	UIAspectRatioConstraint_4.Parent = CloseButton
+
+	BulletsLogs.Name = "BulletsLogs"
+	BulletsLogs.Parent = MAINDRAW
+	BulletsLogs.Active = true
+	BulletsLogs.BackgroundColor3 = Color3.fromRGB(170, 170, 170)
+	BulletsLogs.BackgroundTransparency = 0.950
+	BulletsLogs.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	BulletsLogs.BorderSizePixel = 0
+	BulletsLogs.Position = UDim2.new(0.0308880303, 0, 0.132653058, 0)
+	BulletsLogs.Size = UDim2.new(0.934362948, 0, 0.53061223, 0)
+	BulletsLogs.ScrollBarThickness = 7
+	BulletsLogs.CanvasSize = UDim2.new(0, 0, 1, 0)
+
+	UIStroke_4.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	UIStroke_4.Color = Color3.fromRGB(158, 158, 158)
+	UIStroke_4.Transparency = 0.470
+	UIStroke_4.Parent = BulletsLogs
+
+	UIListLayout.Parent = BulletsLogs
+	UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	UIListLayout.Padding = UDim.new(0, 6)
+	UIListLayout.FillDirection = Enum.FillDirection.Vertical
+	UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+	local function updateCanvasSize()
+		BulletsLogs.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+	end
+	UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
+	updateCanvasSize()
+
+	UIAspectRatioConstraint_5.Parent = BulletsLogs
+	UIAspectRatioConstraint_5.AspectRatio = 1.551
+
+	SettingsButton.Name = "SettingsButton"
+	SettingsButton.Parent = MAINDRAW
+	SettingsButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	SettingsButton.BackgroundTransparency = 1.000
+	SettingsButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	SettingsButton.BorderSizePixel = 0
+	SettingsButton.Position = UDim2.new(0.768339753, 0, 0.0102040814, 0)
+	SettingsButton.Size = UDim2.new(0.0965250954, 0, 0.0850340128, 0)
+	SettingsButton.Image = "rbxassetid://1203479768"
+	SettingsButton.ImageColor3 = Color3.fromRGB(185, 185, 185)
+
+	UIAspectRatioConstraint_6.Parent = SettingsButton
+
+	SETTINGS.Name = "SETTINGS"
+	SETTINGS.Parent = MAINDRAW
+	SETTINGS.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	SETTINGS.BackgroundTransparency = 0.050
+	SETTINGS.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	SETTINGS.BorderSizePixel = 0
+	SETTINGS.Position = UDim2.new(1.03474903, 0, 0.0102040814, 0)
+	SETTINGS.Size = UDim2.new(0.737451732, 0, 0.493197292, 0)
+	SETTINGS.Visible = false
+
+	UIStroke_5.Color = Color3.fromRGB(255, 255, 255)
+	UIStroke_5.Transparency = 0.730
+	UIStroke_5.Parent = SETTINGS
+
+	UICorner_4.CornerRadius = UDim.new(0, 3)
+	UICorner_4.Parent = SETTINGS
+
+	REFRESHRATE.Name = "REFRESHRATE"
+	REFRESHRATE.Parent = SETTINGS
+	REFRESHRATE.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	REFRESHRATE.BackgroundTransparency = 0.950
+	REFRESHRATE.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	REFRESHRATE.BorderSizePixel = 0
+	REFRESHRATE.Position = UDim2.new(0.0785340294, 0, 0.152173907, 0)
+	REFRESHRATE.Size = UDim2.new(0.837696314, 0, 0.151724145, 0)
+	REFRESHRATE.ClearTextOnFocus = false
+	REFRESHRATE.Font = Enum.Font.SourceSans
+	REFRESHRATE.PlaceholderText = "REFRESH RATE"
+	REFRESHRATE.Text = "0.7"
+	REFRESHRATE.TextColor3 = Color3.fromRGB(21, 255, 56)
+	REFRESHRATE.TextSize = 14.000
+
+	TextLabel_2.Parent = REFRESHRATE
+	TextLabel_2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel_2.BackgroundTransparency = 1.000
+	TextLabel_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	TextLabel_2.BorderSizePixel = 0
+	TextLabel_2.Position = UDim2.new(0.193749994, 0, -0.863636374, 0)
+	TextLabel_2.Size = UDim2.new(0, 97, 0, 18)
+	TextLabel_2.Font = Enum.Font.SourceSans
+	TextLabel_2.Text = "REFRESH RATE"
+	TextLabel_2.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel_2.TextSize = 14.000
+
+	UIAspectRatioConstraint_7.Parent = REFRESHRATE
+	UIAspectRatioConstraint_7.AspectRatio = 7.273
+
+	DODAMAGE.Name = "DODAMAGE"
+	DODAMAGE.Parent = SETTINGS
+	DODAMAGE.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	DODAMAGE.BackgroundTransparency = 0.950
+	DODAMAGE.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	DODAMAGE.BorderSizePixel = 0
+	DODAMAGE.Position = UDim2.new(0.0785340294, 0, 0.46896553, 0)
+	DODAMAGE.Size = UDim2.new(0.837696314, 0, 0.151724145, 0)
+	DODAMAGE.Font = Enum.Font.SourceSans
+	DODAMAGE.Text = "DO KILL"
+	DODAMAGE.TextColor3 = Color3.fromRGB(255, 75, 78)
+	DODAMAGE.TextSize = 14.000
+
+	TextLabel_3.Parent = DODAMAGE
+	TextLabel_3.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel_3.BackgroundTransparency = 1.000
+	TextLabel_3.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	TextLabel_3.BorderSizePixel = 0
+	TextLabel_3.Position = UDim2.new(0.0375000015, 0, -0.818181813, 0)
+	TextLabel_3.Size = UDim2.new(0.931249976, 0, 0.818181813, 0)
+	TextLabel_3.Font = Enum.Font.SourceSans
+	TextLabel_3.Text = "DAMAGE WHEN TOUCHED"
+	TextLabel_3.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextLabel_3.TextScaled = true
+	TextLabel_3.TextSize = 14.000
+	TextLabel_3.TextWrapped = true
+
+	UIAspectRatioConstraint_8.Parent = TextLabel_3
+	UIAspectRatioConstraint_8.AspectRatio = 8.278
+
+	UIAspectRatioConstraint_9.Parent = DODAMAGE
+	UIAspectRatioConstraint_9.AspectRatio = 7.273
+
+	UIAspectRatioConstraint_10.Parent = SETTINGS
+	UIAspectRatioConstraint_10.AspectRatio = 1.317
+
+	UIAspectRatioConstraint_11.Parent = MAINDRAW
+	UIAspectRatioConstraint_11.AspectRatio = 0.881
+
+	tempdraw.Name = "tempdraw"
+	tempdraw.Parent = DRAWING_TOOL
+	tempdraw.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	tempdraw.BackgroundTransparency = 0.950
+	tempdraw.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	tempdraw.BorderSizePixel = 0
+	tempdraw.Position = UDim2.new(0, 0, 1.36937854e-06, 0)
+	tempdraw.Size = UDim2.new(1, 0, 0, 26) -- Fixed height in pixels (26px)
+	tempdraw.Visible = false
+	tempdraw.Font = Enum.Font.SourceSans
+	tempdraw.Text = "BULLET #1"
+	tempdraw.TextColor3 = Color3.fromRGB(209, 209, 209)
+	tempdraw.TextSize = 14.000
+	tempdraw.AutoButtonColor = true
+	tempdraw.TextScaled = false
+
+	UIStroke_6.Transparency = 0.620
+	UIStroke_6.Parent = tempdraw
+
+	UIStroke_7.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	UIStroke_7.Color = Color3.fromRGB(255, 255, 255)
+	UIStroke_7.Transparency = 0.620
+	UIStroke_7.Parent = tempdraw
+
+	closedraw.Name = "closedraw"
+	closedraw.Parent = tempdraw
+	closedraw.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	closedraw.BackgroundTransparency = 1.000
+	closedraw.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	closedraw.BorderSizePixel = 0
+	closedraw.Position = UDim2.new(0.879224062, 0, 0.0931706429, 0)
+	closedraw.Size = UDim2.new(1, 0, 0.800000012, 0)
+	closedraw.Image = "rbxassetid://16888018114"
+	closedraw.ImageColor3 = Color3.fromRGB(153, 153, 153)
+
+	UIAspectRatioConstraint_12.Parent = closedraw
+
+	-- Export Button
+	ExportButton.Name = "ExportButton"
+	ExportButton.Parent = MAINDRAW
+	ExportButton.BackgroundColor3 = Color3.fromRGB(40, 200, 80)
+	ExportButton.BackgroundTransparency = 0.1
+	ExportButton.Position = UDim2.new(0.07, 0, 0.03, 0)
+	ExportButton.Size = UDim2.new(0.32, 0, 0.07, 0)
+	ExportButton.Text = "Export"
+	ExportButton.Font = Enum.Font.SourceSans
+	ExportButton.TextColor3 = Color3.new(1,1,1)
+	ExportButton.TextScaled = true
+
+	-- Import Button
+	ImportButton.Name = "ImportButton"
+	ImportButton.Parent = MAINDRAW
+	ImportButton.BackgroundColor3 = Color3.fromRGB(80, 130, 255)
+	ImportButton.BackgroundTransparency = 0.1
+	ImportButton.Position = UDim2.new(0.39, 0, 0.03, 0)
+	ImportButton.Size = UDim2.new(0.32, 0, 0.07, 0)
+	ImportButton.Text = "Import"
+	ImportButton.Font = Enum.Font.SourceSans
+	ImportButton.TextColor3 = Color3.new(1,1,1)
+	ImportButton.TextScaled = true
+
+	-- Export Box
+	ExportBox.Name = "ExportBox"
+	ExportBox.Parent = MAINDRAW
+	ExportBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	ExportBox.BackgroundTransparency = 0.95
+	ExportBox.Position = UDim2.new(0.07, 0, 0.11, 0)
+	ExportBox.Size = UDim2.new(0.64, 0, 0.06, 0)
+	ExportBox.Text = ""
+	ExportBox.ClearTextOnFocus = false
+	ExportBox.Font = Enum.Font.SourceSans
+	ExportBox.TextColor3 = Color3.new(0,0,0)
+	ExportBox.TextSize = 12
+	ExportBox.Visible = false
+
+	-- Import Box
+	ImportBox.Name = "ImportBox"
+	ImportBox.Parent = MAINDRAW
+	ImportBox.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	ImportBox.BackgroundTransparency = 0.95
+	ImportBox.Position = UDim2.new(0.07, 0, 0.18, 0)
+	ImportBox.Size = UDim2.new(0.64, 0, 0.06, 0)
+	ImportBox.Text = ""
+	ImportBox.ClearTextOnFocus = false
+	ImportBox.Font = Enum.Font.SourceSans
+	ImportBox.TextColor3 = Color3.new(0,0,0)
+	ImportBox.TextSize = 12
+	ImportBox.Visible = false
+
+	ActivateButton.MouseButton1Click:Connect(function()
+		DrawSettings.ActiveRender = not DrawSettings.ActiveRender
+		if DrawSettings.ActiveRender then
+			DrawSettings.Drawing = false
+			DrawSettings.FreeDrawActive = false
+			ActivateButton_UIStroke.Color = Color3.fromRGB(158, 76, 91)
+			ActivateDrawing.Text = "ACTIVATE DRAW"
+			ActivateButton_RENDER_UIStroke.Color = Color3.fromRGB(115, 158, 128)
+		else
+			ActivateButton_RENDER_UIStroke.Color = Color3.fromRGB(158, 76, 91)
+		end
+	end)
+	DODAMAGE.MouseButton1Click:Connect(function()
+		DrawSettings.DOKILL = not DrawSettings.DOKILL
+		if not DrawSettings.DOKILL then
+			DODAMAGE.TextColor3 = Color3.fromRGB(255, 75, 78)
+		else
+			DODAMAGE.TextColor3 = Color3.fromRGB(73, 255, 125)
+		end
+	end)
+	ActivateDrawing.MouseButton1Click:Connect(function()
+		DrawSettings.Drawing = not DrawSettings.Drawing
+		DrawSettings.FreeDrawActive = false
+		if DrawSettings.Drawing then
+			ActivateButton_UIStroke.Color = Color3.fromRGB(115, 158, 128)
+			ActivateDrawing.Text = "DRAWING [CLICK TWO POINTS]"
+		else
+			ActivateButton_UIStroke.Color = Color3.fromRGB(158, 76, 91)
+			ActivateDrawing.Text = "START DRAWING"
+		end
+	end)
+	FreeDrawButton.MouseButton1Click:Connect(function()
+		DrawSettings.FreeDrawActive = not DrawSettings.FreeDrawActive
+		DrawSettings.Drawing = false
+		if DrawSettings.FreeDrawActive then
+			FreeDrawButton.Text = "FREE DRAW: ON"
+			ActivateButton_UIStroke.Color = Color3.fromRGB(158, 76, 91)
+			ActivateDrawing.Text = "START DRAWING"
+		else
+			FreeDrawButton.Text = "FREE DRAW"
+		end
+	end)
+	SettingsButton.MouseButton1Click:Connect(function()
+		SETTINGS.Visible = not SETTINGS.Visible
+	end)
+	CloseButton.MouseButton1Click:Connect(function()
+		DRAWING_TOOL:Destroy()
+		DrawSettings.Drawing = false
+		DrawSettings.ActiveRender = false
+		DrawSettings.FreeDrawActive = false
+		pcall(function()
+			for i, v in pairs(DrawSettings.GlobalRenders) do
+				if v and v.BULLET_INSTANCE then v.BULLET_INSTANCE:Destroy() end
+			end
+		end)
+	end)
+	MAINDRAW.MouseEnter:Connect(function()
+		DrawSettings.HoveringOverGui = true
+	end)
+	MAINDRAW.MouseLeave:Connect(function()
+		DrawSettings.HoveringOverGui = false
+	end)
+
+	local function AddBulletToTable(Start, End, Bullet)
+		local TempButton = tempdraw:Clone()
+		local i = #DrawSettings.GlobalRenders + 1
+		TempButton.Text = "Bullet #" .. tostring(i)
+		TempButton.Parent = BulletsLogs
+		TempButton.Visible = true
+		TempButton.Size = UDim2.new(1, 0, 0, 26) -- Fixed height in pixels for each bullet button
+		TempButton.closedraw.MouseButton1Click:Connect(function()
+			if DrawSettings.GlobalRenders[i] and DrawSettings.GlobalRenders[i].BULLET_INSTANCE then
+				DrawSettings.GlobalRenders[i].BULLET_INSTANCE:Destroy()
+			end
+			DrawSettings.GlobalRenders[i] = nil
+			TempButton:Destroy()
+		end)
+		local sel = false
+		TempButton.MouseButton1Click:Connect(function()
+			sel = not sel
+			if sel then
+				Bullet.Transparency = .1
+				Bullet.Color = Color3.new(0.12549, 1, 0.12549)
+				TempButton.BackgroundTransparency = .5
+				DrawSettings.Selected.Part = Bullet
+				DrawSettings.Selected.i = i
+			else
+				Bullet.Transparency = .93
+				DrawSettings.Selected.Part = nil
+				DrawSettings.Selected.i = nil
+				DrawSettings.Transparency = 0.950
+				Bullet.BrickColor = BrickColor.Yellow()
+				TempButton.BackgroundTransparency = 0.950
+			end
+		end)
+		DrawSettings.GlobalRenders[i] = {
+			["START"] = Start,
+			["END"] = End,
+			["BULLET_INSTANCE"] = Bullet
+		}
+	end
+
+	game:GetService("UserInputService").InputBegan:Connect(function(Input, c)
+		if not c and Input.KeyCode == Enum.KeyCode.R then
+			DrawSettings.Rotating = true
+		end
+	end)
+	game:GetService("UserInputService").InputEnded:Connect(function(Input, c)
+		if not c and Input.KeyCode == Enum.KeyCode.R then
+			DrawSettings.Rotating = false
+		end
+		-- Normal drawing logic
+		if not c and Input.UserInputType == Enum.UserInputType.Touch or Input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+			if DrawSettings.FreeDrawActive then
+				if not DrawSettings.FreeDrawDrawing then
+					-- Start free draw
+					DrawSettings.FreeDrawDrawing = true
+					DrawSettings.FreeDrawLast = (plr:GetMouse().Hit.p)
+				else
+					-- Finish free draw
+					DrawSettings.FreeDrawDrawing = false
+					DrawSettings.FreeDrawLast = nil
+				end
+				return
+			end
+			if DrawSettings.Drawing and DrawSettings.P1 and not DrawSettings.P2 then
+				DrawSettings.P2 = plr:GetMouse().Hit
+				return
+			end
+			if DrawSettings.Drawing and not DrawSettings.P1 then
+				DrawSettings.P1 = plr:GetMouse().Hit
+				DrawSettings.B = Instance.new("Part", workspace)
+				plr:GetMouse().TargetFilter = DrawSettings.B
+				local distance = (plr:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+				local mesh = Instance.new("BlockMesh", DrawSettings.B)
+				mesh.Scale = Vector3.new(.5, .5, 1)
+				DrawSettings.B.Name = "RayPart"
+				DrawSettings.B.BrickColor = BrickColor.Yellow()
+				DrawSettings.B.Material = Enum.Material.Neon
+				DrawSettings.B.Anchored = true
+				DrawSettings.B.CanCollide = false
+				DrawSettings.B.Transparency = .5
+				DrawSettings.B.formFactor = Enum.FormFactor.Custom
+				DrawSettings.B.Size = Vector3.new(.2, .2, distance)
+				DrawSettings.B.CFrame = CFrame.new(plr:GetMouse().Hit.p, DrawSettings.P1.Position) * CFrame.new(0, 0, -distance / 2)
+				return
+			end
+		end
+	end)
+	Instance.new("UIDragDetector", MAINDRAW)
+	REFRESHRATE.Changed:Connect(function()
+		if not tonumber(REFRESHRATE.Text) or (tonumber(REFRESHRATE.Text) and tonumber(REFRESHRATE.Text)) < .2 then
+			REFRESHRATE.Text = "0.7"
+		end
+	end)
+	task.spawn(function()
+		while task.wait() do
+			if tonumber(REFRESHRATE.Text) then
+				wait(tonumber(REFRESHRATE.Text) or .7)
+				if #DrawSettings.GlobalRenders > 0 and DrawSettings.ActiveRender then
+					Fire_Replicated_Bullet(DrawSettings.GlobalRenders, DrawSettings.DOKILL)
+				end
+			end
+		end
+	end)
+	task.spawn(function()
+		while wait() do
+			if DrawSettings.Selected and DrawSettings.Selected.Part and DrawSettings.Rotating then
+				-- DrawSettings.Selected.Part.CFrame = DrawSettings.Selected.Part.CFrame *CFrame.Angles(math.rad(3),0,0)
+				-- DrawSettings.GlobalRenders[DrawSettings.Selected.i].END = DrawSettings.Selected.Part.CFrame:PointToWorldSpace(Vector3.new(DrawSettings.Selected.Part.Size.X*4, DrawSettings.Selected.Part.Size.Y*4, DrawSettings.Selected.Part.Size.Z*4)) 
+				-- DrawSettings.GlobalRenders[DrawSettings.Selected.i].START = DrawSettings.Selected.Part.CFrame:PointToWorldSpace(Vector3.new(DrawSettings.Selected.Part.Size.X/2, DrawSettings.Selected.Part.Size.Y/2, DrawSettings.Selected.Part.Size.Z/2))
+			end
+		end
+	end)
+
+	local function clearAllBullets()
+		for i, v in pairs(DrawSettings.GlobalRenders) do
+			if v and v.BULLET_INSTANCE then v.BULLET_INSTANCE:Destroy() end
+		end
+		DrawSettings.GlobalRenders = {}
+		for _, v in pairs(BulletsLogs:GetChildren()) do
+			if v:IsA("TextButton") and v ~= tempdraw then
+				v:Destroy()
+			end
+		end
+	end
+
+	local function addBulletFromData(Start, End)
+		local B = Instance.new("Part", workspace)
+		local distance = (Start - End).magnitude
+		local mesh = Instance.new("BlockMesh", B)
+		mesh.Scale = Vector3.new(.5, .5, 1)
+		B.Name = "RayPart"
+		B.BrickColor = BrickColor.Yellow()
+		B.Material = Enum.Material.Neon
+		B.Anchored = true
+		B.CanCollide = false
+		B.Transparency = .93
+		B.formFactor = Enum.FormFactor.Custom
+		B.Size = Vector3.new(.2, .2, distance)
+		B.CFrame = CFrame.new(End, Start) * CFrame.new(0, 0, -distance / 2)
+		AddBulletToTable(Start, End, B)
+	end
+
+	-- Export/Import logic
+	ExportButton.MouseButton1Click:Connect(function()
+		local bullets = {}
+		for _, v in pairs(DrawSettings.GlobalRenders) do
+			if v and v.START and v.END then
+				table.insert(bullets, {START = {x = v.START.X, y = v.START.Y, z = v.START.Z}, END = {x = v.END.X, y = v.END.Y, z = v.END.Z}})
+			end
+		end
+		local exportStr = HttpService:JSONEncode(bullets)
+		ExportBox.Text = exportStr
+		ExportBox.Visible = true
+		wait(0.01)
+		ExportBox:CaptureFocus()
+		wait(0.01)
+		ExportBox:ReleaseFocus()
+		wait(2)
+		ExportBox.Visible = false
+	end)
+
+	ImportButton.MouseButton1Click:Connect(function()
+		ImportBox.Visible = true
+		ImportBox.Text = ""
+		ImportBox:CaptureFocus()
+	end)
+
+	ImportBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			local ok, tab = pcall(function()
+				return HttpService:JSONDecode(ImportBox.Text)
+			end)
+			if ok and typeof(tab) == "table" then
+				clearAllBullets()
+				for _, v in ipairs(tab) do
+					if v.START and v.END then
+						local s = Vector3.new(v.START.x, v.START.y, v.START.z)
+						local e = Vector3.new(v.END.x, v.END.y, v.END.z)
+						addBulletFromData(s, e)
+					end
+				end
+			end
+		end
+		ImportBox.Visible = false
+	end)
+
+	-- Free Draw update logic
+	task.spawn(function()
+		local mouse = plr:GetMouse()
+		while wait() do
+			if DrawSettings.FreeDrawActive and DrawSettings.FreeDrawDrawing and DrawSettings.FreeDrawLast then
+				local curPos = mouse.Hit and mouse.Hit.p
+				if curPos and (curPos - DrawSettings.FreeDrawLast).magnitude > 0.5 then -- 0.5 studs min segment
+					-- Draw a segment from last to curPos
+					local B = Instance.new("Part", workspace)
+					local distance = (curPos - DrawSettings.FreeDrawLast).magnitude
+					local mesh = Instance.new("BlockMesh", B)
+					mesh.Scale = Vector3.new(.5, .5, 1)
+					B.Name = "RayPart"
+					B.BrickColor = BrickColor.Yellow()
+					B.Material = Enum.Material.Neon
+					B.Anchored = true
+					B.CanCollide = false
+					B.Transparency = .93
+					B.formFactor = Enum.FormFactor.Custom
+					B.Size = Vector3.new(.2, .2, distance)
+					B.CFrame = CFrame.new(curPos, DrawSettings.FreeDrawLast) * CFrame.new(0, 0, -distance / 2)
+					AddBulletToTable(DrawSettings.FreeDrawLast, curPos, B)
+					DrawSettings.FreeDrawLast = curPos
+				end
+			end
+		end
+	end)
+
+	local RStep = game:service'RunService'.RenderStepped
+	while RStep:Wait() do
+		if DrawSettings.Drawing then
+			repeat task.wait() until DrawSettings.B
+			repeat task.wait()
+				local distance = (plr:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+				DrawSettings.B.Size = Vector3.new(.2, .2, distance)
+				DrawSettings.B.CFrame = CFrame.new(plr:GetMouse().Hit.p, DrawSettings.P1.Position) * CFrame.new(0, 0, -distance / 2)
+			until DrawSettings.P2
+			AddBulletToTable(DrawSettings.P1.p, DrawSettings.P2.p, DrawSettings.B)
+			DrawSettings.B.Transparency = .93
+			DrawSettings.B = nil
+			DrawSettings.P1 = nil
+			DrawSettings.P2 = nil
+		end
+	end
+end
