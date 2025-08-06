@@ -1,0 +1,812 @@
+--[[
+Drawtool V1 - Minimal, Transparent, Aesthetic, Functional GUI
+Author: verdictogertu-cloud (2025)
+Features:
+- Highly transparent, dark theme, minimal accent colors.
+- Centered title ('Drawtool V1'), always visible.
+- Import/Export buttons well-spaced, minimal, icon+label, never covers title.
+- All controls have consistent rounded corners, soft hover highlights.
+- Bullet log is organized, easy to scan, and scrollable.
+- Settings panel with smooth transitions.
+- Functional: Render, Draw, Free Draw, Import/Export, Settings, Bullet selection/removal.
+- Drag-to-move, keyboard shortcuts for speed.
+--]]
+
+local plr = game:GetService("Players").LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+---------------------
+-- THEME CONSTANTS --
+---------------------
+local THEME = {
+    bg = Color3.fromRGB(20, 22, 24),
+    panel = Color3.fromRGB(32, 36, 40),
+    border = Color3.fromRGB(55, 60, 66),
+    accent = Color3.fromRGB(80, 120, 220),       -- Blue accent
+    accent2 = Color3.fromRGB(45, 185, 90),       -- Green accent
+    accent3 = Color3.fromRGB(255, 200, 40),      -- Yellow accent
+    text = Color3.fromRGB(220, 220, 220),
+    textDim = Color3.fromRGB(150, 150, 150),
+    error = Color3.fromRGB(255, 70, 80),
+    success = Color3.fromRGB(70, 255, 120),
+    hover = Color3.fromRGB(60, 66, 75),
+    selected = Color3.fromRGB(40, 110, 190),
+    inactive = Color3.fromRGB(100, 100, 100),
+    inputBg = Color3.fromRGB(40, 44, 50),
+    inputFg = Color3.fromRGB(220, 220, 220),
+    shadow = Color3.fromRGB(10, 10, 10),
+}
+
+local TRANSPARENCY = {
+    main = 0.55,
+    panel = 0.35,
+    button = 0.25,
+    buttonHover = 0.13,
+    border = 0.5,
+    input = 0.16,
+    inputFocus = 0.08,
+    bulletLog = 0.2,
+    bulletLogSel = 0.09,
+    shadow = 0.8,
+}
+
+local CORNER = UDim.new(0, 10)
+local FONT = Enum.Font.GothamSemibold
+
+----------------------------
+-- UI BUILD HELPER FUNCS  --
+----------------------------
+local function createShadow(parent, size, pos, zidx)
+    local shadow = Instance.new("ImageLabel")
+    shadow.Parent = parent
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://1316045217"
+    shadow.Size = size
+    shadow.Position = pos
+    shadow.ZIndex = zidx or 0
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(10,10,118,118)
+    shadow.ImageColor3 = THEME.shadow
+    shadow.ImageTransparency = TRANSPARENCY.shadow
+    return shadow
+end
+
+local function rounded(obj, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = radius or CORNER
+    c.Parent = obj
+end
+
+local function stroke(obj, color, trans, thickness)
+    local s = Instance.new("UIStroke")
+    s.Color = color or THEME.border
+    s.Transparency = trans or TRANSPARENCY.border
+    s.Thickness = thickness or 1.2
+    s.Parent = obj
+end
+
+local function hoverify(btn, base, hover, t_base, t_hover)
+    btn.BackgroundColor3 = base
+    btn.BackgroundTransparency = t_base
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = hover
+        btn.BackgroundTransparency = t_hover
+    end)
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = base
+        btn.BackgroundTransparency = t_base
+    end)
+end
+
+local function iconBtn(parent, text, icon, color, hoverColor, pos, size)
+    local btn = Instance.new("TextButton")
+    btn.Parent = parent
+    btn.BackgroundColor3 = color
+    btn.BackgroundTransparency = TRANSPARENCY.button
+    btn.BorderSizePixel = 0
+    btn.Position = pos
+    btn.Size = size
+    btn.Font = FONT
+    btn.Text = text
+    btn.TextColor3 = THEME.text
+    btn.TextScaled = true
+    btn.AutoButtonColor = false
+    rounded(btn)
+    stroke(btn, color, 0.7)
+    hoverify(btn, color, hoverColor, TRANSPARENCY.button, TRANSPARENCY.buttonHover)
+    if icon then
+        local ic = Instance.new("ImageLabel")
+        ic.Parent = btn
+        ic.Image = icon
+        ic.Size = UDim2.new(0.35,0,0.8,0)
+        ic.Position = UDim2.new(0.04,0,0.1,0)
+        ic.BackgroundTransparency = 1
+        ic.ImageColor3 = THEME.text
+        ic.ZIndex = btn.ZIndex + 1
+    end
+    return btn
+end
+
+local function label(parent, text, font, color, pos, size, zidx, align)
+    local lbl = Instance.new("TextLabel")
+    lbl.Parent = parent
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.Font = font or FONT
+    lbl.TextColor3 = color or THEME.text
+    lbl.Position = pos or UDim2.new(0,0,0,0)
+    lbl.Size = size or UDim2.new(1,0,1,0)
+    lbl.TextScaled = true
+    lbl.ZIndex = zidx or 1
+    lbl.TextXAlignment = align or Enum.TextXAlignment.Center
+    return lbl
+end
+
+local function inputBox(parent, placeholder, pos, size)
+    local box = Instance.new("TextBox")
+    box.Parent = parent
+    box.BackgroundColor3 = THEME.inputBg
+    box.BackgroundTransparency = TRANSPARENCY.input
+    box.BorderSizePixel = 0
+    box.Position = pos
+    box.Size = size
+    box.Font = Enum.Font.Code
+    box.PlaceholderText = placeholder
+    box.TextColor3 = THEME.inputFg
+    box.Text = ""
+    box.TextSize = 14
+    box.ClearTextOnFocus = false
+    rounded(box)
+    stroke(box, THEME.border, 0.8, 1)
+    box.Focused:Connect(function()
+        box.BackgroundTransparency = TRANSPARENCY.inputFocus
+    end)
+    box.FocusLost:Connect(function()
+        box.BackgroundTransparency = TRANSPARENCY.input
+    end)
+    return box
+end
+
+local function toggleBtn(parent, text, color, pos, size)
+    local btn = Instance.new("TextButton")
+    btn.Parent = parent
+    btn.BackgroundColor3 = color
+    btn.BackgroundTransparency = TRANSPARENCY.button
+    btn.BorderSizePixel = 0
+    btn.Position = pos
+    btn.Size = size
+    btn.Font = FONT
+    btn.Text = text
+    btn.TextColor3 = THEME.text
+    btn.TextScaled = true
+    btn.AutoButtonColor = false
+    rounded(btn)
+    stroke(btn, color, 0.7)
+    hoverify(btn, color, THEME.hover, TRANSPARENCY.button, TRANSPARENCY.buttonHover)
+    return btn
+end
+
+---------------------
+-- MAIN GUI WINDOW --
+---------------------
+local DRAWING_TOOL = Instance.new("ScreenGui")
+DRAWING_TOOL.Name = "DRAWING_TOOL"
+DRAWING_TOOL.Parent = game:GetService("CoreGui")
+DRAWING_TOOL.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MAINDRAW = Instance.new("Frame")
+MAINDRAW.Name = "MAINDRAW"
+MAINDRAW.Parent = DRAWING_TOOL
+MAINDRAW.BackgroundColor3 = THEME.bg
+MAINDRAW.BackgroundTransparency = TRANSPARENCY.main
+MAINDRAW.BorderSizePixel = 0
+MAINDRAW.Position = UDim2.new(0.18, 0, 0.3, 0)
+MAINDRAW.Size = UDim2.new(0.31, 0, 0.54, 0)
+rounded(MAINDRAW)
+stroke(MAINDRAW, THEME.border, 0.7, 1.2)
+createShadow(MAINDRAW, UDim2.new(1,16,1,16), UDim2.new(-0.03,0,-0.03,0), 0)
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Parent = MAINDRAW
+TitleBar.BackgroundTransparency = 1
+TitleBar.Size = UDim2.new(1,0,0.12,0)
+TitleBar.Position = UDim2.new(0,0,0,0)
+
+local Title = label(TitleBar, "Drawtool V1", FONT, THEME.text, UDim2.new(0.23,0,0.09,0), UDim2.new(0.54,0,0.8,0), 3)
+Title.TextXAlignment = Enum.TextXAlignment.Center
+
+-- Close Button (top left)
+local CloseBtn = Instance.new("ImageButton")
+CloseBtn.Parent = TitleBar
+CloseBtn.Size = UDim2.new(0.09,0,0.75,0)
+CloseBtn.Position = UDim2.new(0.01,0,0.13,0)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Image = "rbxassetid://16888018114"
+CloseBtn.ImageColor3 = THEME.inactive
+CloseBtn.ZIndex = 4
+CloseBtn.MouseEnter:Connect(function()
+    CloseBtn.ImageColor3 = THEME.error
+end)
+CloseBtn.MouseLeave:Connect(function()
+    CloseBtn.ImageColor3 = THEME.inactive
+end)
+
+-- Import/Export Row (top right)
+local ImportExportRow = Instance.new("Frame")
+ImportExportRow.Parent = TitleBar
+ImportExportRow.BackgroundTransparency = 1
+ImportExportRow.Size = UDim2.new(0.32,0,0.7,0)
+ImportExportRow.Position = UDim2.new(0.34,0,7,0)
+
+local ImportBtn = iconBtn(
+    ImportExportRow, "Import", "rbxassetid://3926307971", -- Download icon (or use another asset)
+    THEME.accent, THEME.selected,
+    UDim2.new(0,0,0,0), UDim2.new(0.48,0,1,0)
+)
+ImportBtn.TextXAlignment = Enum.TextXAlignment.Right
+
+local ExportBtn = iconBtn(
+    ImportExportRow, "Export", "rbxassetid://3926305904", -- Upload icon (or use another asset)
+    THEME.accent2, THEME.selected,
+    UDim2.new(0.52,0,0,0), UDim2.new(0.48,0,1,0)
+)
+ExportBtn.TextXAlignment = Enum.TextXAlignment.Right
+
+-------------------------
+-- SETTINGS PANEL ICON --
+-------------------------
+local SettingsBtn = Instance.new("ImageButton")
+SettingsBtn.Parent = TitleBar
+SettingsBtn.Size = UDim2.new(0.09,0,0.75,0)
+SettingsBtn.Position = UDim2.new(0.90,0,0.13,0)
+SettingsBtn.BackgroundTransparency = 1
+SettingsBtn.Image = "rbxassetid://1203479768"
+SettingsBtn.ImageColor3 = THEME.inactive
+SettingsBtn.ZIndex = 4
+SettingsBtn.MouseEnter:Connect(function()
+    SettingsBtn.ImageColor3 = THEME.accent
+end)
+SettingsBtn.MouseLeave:Connect(function()
+    SettingsBtn.ImageColor3 = THEME.inactive
+end)
+
+-----------------
+-- BULLET LOGS --
+-----------------
+local BulletLogs = Instance.new("ScrollingFrame")
+BulletLogs.Name = "BulletLogs"
+BulletLogs.Parent = MAINDRAW
+BulletLogs.BackgroundColor3 = THEME.panel
+BulletLogs.BackgroundTransparency = TRANSPARENCY.bulletLog
+BulletLogs.BorderSizePixel = 0
+BulletLogs.Position = UDim2.new(0.045,0,0.15,0)
+BulletLogs.Size = UDim2.new(0.91,0,0.47,0)
+BulletLogs.ScrollBarThickness = 4
+BulletLogs.CanvasSize = UDim2.new(0,0,1,0)
+rounded(BulletLogs)
+stroke(BulletLogs, THEME.border, 0.7, 1)
+
+local LogLayout = Instance.new("UIListLayout")
+LogLayout.Parent = BulletLogs
+LogLayout.SortOrder = Enum.SortOrder.LayoutOrder
+LogLayout.Padding = UDim.new(0, 6)
+LogLayout.FillDirection = Enum.FillDirection.Vertical
+
+local function updateCanvasSize()
+    BulletLogs.CanvasSize = UDim2.new(0,0,0, LogLayout.AbsoluteContentSize.Y)
+end
+LogLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
+updateCanvasSize()
+
+-------------------------
+-- ACTION BUTTONS ROW  --
+-------------------------
+local ActionsRow = Instance.new("Frame")
+ActionsRow.Parent = MAINDRAW
+ActionsRow.BackgroundTransparency = 1
+ActionsRow.Size = UDim2.new(0.91,0,0.09,0)
+ActionsRow.Position = UDim2.new(0.045,0,0.64,0)
+
+local RenderBtn = toggleBtn(
+    ActionsRow, "Render", THEME.accent2,
+    UDim2.new(0,0,0,0), UDim2.new(0.47,0,1,0)
+)
+local DrawBtn = toggleBtn(
+    ActionsRow, "Draw", THEME.accent,
+    UDim2.new(0.53,0,0,0), UDim2.new(0.47,0,1,0)
+)
+
+-------------------------
+-- FREE DRAW BUTTON    --
+-------------------------
+local FreeDrawBtn = toggleBtn(
+    MAINDRAW, "Free Draw", THEME.accent3,
+    UDim2.new(0.045,0,0.75,0), UDim2.new(0.91,0,0.07,0)
+)
+FreeDrawBtn.TextColor3 = THEME.bg
+
+-------------------------
+-- IMPORT/EXPORT PANEL --
+-------------------------
+local ImportPanel = Instance.new("Frame")
+ImportPanel.Parent = MAINDRAW
+ImportPanel.BackgroundColor3 = THEME.panel
+ImportPanel.BackgroundTransparency = TRANSPARENCY.panel
+ImportPanel.Size = UDim2.new(0.65,0,0.13,0)
+ImportPanel.Position = UDim2.new(0.17,0,0.85,0)
+ImportPanel.Visible = false
+rounded(ImportPanel)
+stroke(ImportPanel, THEME.accent, 0.7, 2)
+
+local ImportInput = inputBox(ImportPanel, "Paste bullets JSON here", UDim2.new(0.02,0,0.14,0), UDim2.new(0.96,0,0.36,0))
+ImportInput.TextWrapped = true
+
+local ImportConfirmBtn = toggleBtn(
+    ImportPanel, "Confirm Import", THEME.accent,
+    UDim2.new(0.02,0,0.59,0), UDim2.new(0.46,0,0.36,0)
+)
+local ImportCancelBtn = toggleBtn(
+    ImportPanel, "Cancel", THEME.error,
+    UDim2.new(0.52,0,0.59,0), UDim2.new(0.46,0,0.36,0)
+)
+
+local ExportPanel = Instance.new("Frame")
+ExportPanel.Parent = MAINDRAW
+ExportPanel.BackgroundColor3 = THEME.panel
+ExportPanel.BackgroundTransparency = TRANSPARENCY.panel
+ExportPanel.Size = UDim2.new(0.65,0,0.13,0)
+ExportPanel.Position = UDim2.new(0.17,0,0.85,0)
+ExportPanel.Visible = false
+rounded(ExportPanel)
+stroke(ExportPanel, THEME.accent2, 0.7, 2)
+
+local ExportInput = inputBox(ExportPanel, "Exported bullets JSON", UDim2.new(0.02,0,0.14,0), UDim2.new(0.96,0,0.36,0))
+ExportInput.TextWrapped = true
+ExportInput.TextEditable = false
+
+local ExportCloseBtn = toggleBtn(
+    ExportPanel, "Close", THEME.accent2,
+    UDim2.new(0.02,0,0.59,0), UDim2.new(0.96,0,0.36,0)
+)
+
+----------------------
+-- SETTINGS PANEL   --
+----------------------
+local SettingsPanel = Instance.new("Frame")
+SettingsPanel.Parent = MAINDRAW
+SettingsPanel.BackgroundColor3 = THEME.panel
+SettingsPanel.BackgroundTransparency = TRANSPARENCY.panel
+SettingsPanel.Size = UDim2.new(0.37,0,0.45,0)
+SettingsPanel.Position = UDim2.new(1.03,0,0.12,0)
+SettingsPanel.Visible = false
+rounded(SettingsPanel)
+stroke(SettingsPanel, THEME.accent, 0.4, 2)
+
+local SettingsTitle = label(SettingsPanel, "Settings", FONT, THEME.text, UDim2.new(0.02,0,0.04,0), UDim2.new(0.96,0,0.18,0), 2)
+SettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local RefreshRateLabel = label(SettingsPanel, "Refresh Rate", FONT, THEME.textDim, UDim2.new(0.02,0,0.26,0), UDim2.new(0.45,0,0.16,0), 2, Enum.TextXAlignment.Left)
+local RefreshRateInput = inputBox(SettingsPanel, "0.7", UDim2.new(0.5,0,0.26,0), UDim2.new(0.45,0,0.16,0))
+RefreshRateInput.Text = "0.7"
+
+local DoKillBtn = toggleBtn(
+    SettingsPanel, "Do Kill", THEME.error,
+    UDim2.new(0.02,0,0.45,0), UDim2.new(0.45,0,0.16,0)
+)
+DoKillBtn.TextColor3 = THEME.error
+
+local DoKillLabel = label(
+    SettingsPanel, "Damage When Touched", FONT, THEME.textDim,
+    UDim2.new(0.5,0,0.45,0), UDim2.new(0.45,0,0.16,0), 2, Enum.TextXAlignment.Left
+)
+
+--------------------------
+-- LOGIC AND VARIABLES  --
+--------------------------
+local DrawSettings = {
+    ActiveRender = false,
+    Drawing = false,
+    HoveringOverGui = false,
+    GlobalRenders = {},
+    P1 = nil, P2 = nil, B = nil,
+    DOKILL = false,
+    Selected = {},
+    FreeDrawActive = false,
+    FreeDrawDrawing = false,
+    FreeDrawLast = nil,
+    Rotating = false,
+}
+
+local function Fire_Replicated_Bullet(Args, DoDamage)
+    local Bullets = {}
+    for i, v in pairs(Args) do
+        if v and v.START and v.END then
+            local dist = (v.START - v.END).magnitude
+            local s = (dist / 1)
+            local vector = Vector3.new(
+                math.random(-s, s) / 10,
+                math.random(-s, s) / 10,
+                math.random(-s, s) / 10
+            )
+            local Ray = Ray.new(v.START, ((v.END + vector) - v.START).unit * 100000)
+            local position = v.END
+            local distance = (position - v.START).magnitude
+            local rayPart = Instance.new("Part", workspace)
+            local mesh = Instance.new("BlockMesh", rayPart)
+            mesh.Scale = Vector3.new(.5, .5, 1)
+            rayPart.Name = "RayPart"
+            rayPart.BrickColor = BrickColor.Yellow()
+            rayPart.Material = Enum.Material.Neon
+            rayPart.Anchored = true
+            rayPart.CanCollide = false
+            rayPart.Transparency = .5
+            rayPart.formFactor = Enum.FormFactor.Custom
+            rayPart.Size = Vector3.new(.2, .2, distance)
+            rayPart.CFrame = CFrame.new(position, v.START) * CFrame.new(0, 0, -distance / 2)
+            game:GetService("Debris"):AddItem(rayPart, .05)
+            local RealHit, RealPos = workspace:FindPartOnRay(Ray, plr.Character)
+            for i = 1, ((v.HIT and v.HIT:IsA("Player") and 9) or 1) do
+                Bullets[#Bullets + 1] = {
+                    ["RayObject"] = Ray,
+                    ["Distance"] = distance,
+                    ["Cframe"] = rayPart.CFrame,
+                    ["Hit"] = (v.HIT and v.HIT:IsA("Player") and v.HIT.Character.Head)
+                        or (DoDamage and RealHit)
+                        or workspace:FindFirstChildOfClass("Part"),
+                }
+            end
+        end
+    end
+    local Tool, Gun = ("Remington 870"), nil
+    repeat task.wait()
+        workspace.Remote.ItemHandler:InvokeServer{
+            Position = plr.Character:GetPivot().p,
+            Parent = workspace.Prison_ITEMS:FindFirstChild(Tool, true)
+        }
+        Gun = plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool)
+    until plr.Backpack:FindFirstChild(Tool)
+        or plr.Character:FindFirstChild(Tool)
+        and plr.Character:FindFirstChildOfClass("Humanoid")
+    game:GetService("ReplicatedStorage"):WaitForChild("ShootEvent"):FireServer(Bullets, Gun)
+    game:GetService("ReplicatedStorage").ReloadEvent:FireServer(Gun)
+end
+
+local function AddBulletToTable(Start, End, Bullet)
+    local TempButton = Instance.new("TextButton")
+    TempButton.Text = "Bullet #" .. tostring(#DrawSettings.GlobalRenders + 1)
+    TempButton.Parent = BulletLogs
+    TempButton.BackgroundColor3 = THEME.inputBg
+    TempButton.BackgroundTransparency = TRANSPARENCY.bulletLog
+    TempButton.Size = UDim2.new(1,0,0,28)
+    TempButton.Font = FONT
+    TempButton.TextColor3 = THEME.text
+    TempButton.TextSize = 14
+    TempButton.AutoButtonColor = true
+    rounded(TempButton)
+    stroke(TempButton, THEME.border, 0.7, 1)
+    local close = Instance.new("ImageButton")
+    close.Parent = TempButton
+    close.Size = UDim2.new(0.14,0,0.8,0)
+    close.Position = UDim2.new(0.86,0,0.12,0)
+    close.Image = "rbxassetid://16888018114"
+    close.ImageColor3 = THEME.inactive
+    close.BackgroundTransparency = 1
+    close.MouseEnter:Connect(function()
+        close.ImageColor3 = THEME.error
+    end)
+    close.MouseLeave:Connect(function()
+        close.ImageColor3 = THEME.inactive
+    end)
+    close.MouseButton1Click:Connect(function()
+        if Bullet and Bullet.Parent then Bullet:Destroy() end
+        TempButton:Destroy()
+        DrawSettings.GlobalRenders[#DrawSettings.GlobalRenders] = nil
+    end)
+    local sel = false
+    TempButton.MouseButton1Click:Connect(function()
+        sel = not sel
+        if sel then
+            Bullet.Transparency = .1
+            Bullet.Color = THEME.selected
+            TempButton.BackgroundTransparency = TRANSPARENCY.bulletLogSel
+            DrawSettings.Selected.Part = Bullet
+            DrawSettings.Selected.i = #DrawSettings.GlobalRenders
+        else
+            Bullet.Transparency = .93
+            DrawSettings.Selected.Part = nil
+            DrawSettings.Selected.i = nil
+            Bullet.BrickColor = BrickColor.Yellow()
+            TempButton.BackgroundTransparency = TRANSPARENCY.bulletLog
+        end
+    end)
+    DrawSettings.GlobalRenders[#DrawSettings.GlobalRenders + 1] = {
+        ["START"] = Start,
+        ["END"] = End,
+        ["BULLET_INSTANCE"] = Bullet
+    }
+    updateCanvasSize()
+end
+
+local function clearAllBullets()
+    for i, v in pairs(DrawSettings.GlobalRenders) do
+        if v and v.BULLET_INSTANCE then v.BULLET_INSTANCE:Destroy() end
+    end
+    DrawSettings.GlobalRenders = {}
+    for _, v in pairs(BulletLogs:GetChildren()) do
+        if v:IsA("TextButton") then
+            v:Destroy()
+        end
+    end
+end
+
+local function addBulletFromData(Start, End)
+    local B = Instance.new("Part", workspace)
+    local distance = (Start - End).magnitude
+    local mesh = Instance.new("BlockMesh", B)
+    mesh.Scale = Vector3.new(.5, .5, 1)
+    B.Name = "RayPart"
+    B.BrickColor = BrickColor.Yellow()
+    B.Material = Enum.Material.Neon
+    B.Anchored = true
+    B.CanCollide = false
+    B.Transparency = .93
+    B.formFactor = Enum.FormFactor.Custom
+    B.Size = Vector3.new(.2, .2, distance)
+    B.CFrame = CFrame.new(End, Start) * CFrame.new(0, 0, -distance / 2)
+    AddBulletToTable(Start, End, B)
+end
+
+--------------------------
+-- EVENT CONNECTIONS    --
+--------------------------
+RenderBtn.MouseButton1Click:Connect(function()
+    DrawSettings.ActiveRender = not DrawSettings.ActiveRender
+    if DrawSettings.ActiveRender then
+        DrawSettings.Drawing = false
+        DrawSettings.FreeDrawActive = false
+        RenderBtn.Text = "Rendering..."
+        DrawBtn.Text = "Draw"
+    else
+        RenderBtn.Text = "Render"
+    end
+end)
+
+DrawBtn.MouseButton1Click:Connect(function()
+    DrawSettings.Drawing = not DrawSettings.Drawing
+    DrawSettings.FreeDrawActive = false
+    if DrawSettings.Drawing then
+        DrawBtn.Text = "Drawing..."
+        RenderBtn.Text = "Render"
+    else
+        DrawBtn.Text = "Draw"
+    end
+end)
+
+FreeDrawBtn.MouseButton1Click:Connect(function()
+    DrawSettings.FreeDrawActive = not DrawSettings.FreeDrawActive
+    DrawSettings.Drawing = false
+    if DrawSettings.FreeDrawActive then
+        FreeDrawBtn.Text = "Free Draw: ON"
+        DrawBtn.Text = "Draw"
+    else
+        FreeDrawBtn.Text = "Free Draw"
+    end
+end)
+
+DoKillBtn.MouseButton1Click:Connect(function()
+    DrawSettings.DOKILL = not DrawSettings.DOKILL
+    if DrawSettings.DOKILL then
+        DoKillBtn.TextColor3 = THEME.success
+    else
+        DoKillBtn.TextColor3 = THEME.error
+    end
+end)
+
+ImportBtn.MouseButton1Click:Connect(function()
+    ImportPanel.Visible = true
+end)
+ExportBtn.MouseButton1Click:Connect(function()
+    local bullets = {}
+    for _, v in pairs(DrawSettings.GlobalRenders) do
+        if v and v.START and v.END then
+            table.insert(bullets, {START = {x = v.START.X, y = v.START.Y, z = v.START.Z}, END = {x = v.END.X, y = v.END.Y, z = v.END.Z}})
+        end
+    end
+    ExportInput.Text = HttpService:JSONEncode(bullets)
+    ExportPanel.Visible = true
+end)
+
+ImportConfirmBtn.MouseButton1Click:Connect(function()
+    local ok, tab = pcall(function()
+        return HttpService:JSONDecode(ImportInput.Text)
+    end)
+    if ok and typeof(tab) == "table" then
+        clearAllBullets()
+        for _, v in ipairs(tab) do
+            if v.START and v.END then
+                local s = Vector3.new(v.START.x, v.START.y, v.START.z)
+                local e = Vector3.new(v.END.x, v.END.y, v.END.z)
+                addBulletFromData(s, e)
+            end
+        end
+    end
+    ImportPanel.Visible = false
+end)
+ImportCancelBtn.MouseButton1Click:Connect(function()
+    ImportPanel.Visible = false
+end)
+ExportCloseBtn.MouseButton1Click:Connect(function()
+    ExportPanel.Visible = false
+end)
+
+SettingsBtn.MouseButton1Click:Connect(function()
+    SettingsPanel.Visible = not SettingsPanel.Visible
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    DRAWING_TOOL:Destroy()
+    DrawSettings.Drawing = false
+    DrawSettings.ActiveRender = false
+    DrawSettings.FreeDrawActive = false
+    pcall(function()
+        for i, v in pairs(DrawSettings.GlobalRenders) do
+            if v and v.BULLET_INSTANCE then v.BULLET_INSTANCE:Destroy() end
+        end
+    end)
+end)
+
+RefreshRateInput.FocusLost:Connect(function()
+    if not tonumber(RefreshRateInput.Text) or (tonumber(RefreshRateInput.Text) and tonumber(RefreshRateInput.Text)) < .2 then
+        RefreshRateInput.Text = "0.7"
+    end
+end)
+
+--------------------------
+-- DRAGGING MAIN WINDOW --
+--------------------------
+local dragging, dragInput, dragStart, startPos
+MAINDRAW.Active = true
+MAINDRAW.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MAINDRAW.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+MAINDRAW.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MAINDRAW.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+--------------------------
+-- DRAWING LOGIC        --
+--------------------------
+game:GetService("UserInputService").InputBegan:Connect(function(Input, c)
+    if not c and Input.KeyCode == Enum.KeyCode.R then
+        DrawSettings.Rotating = true
+    end
+end)
+game:GetService("UserInputService").InputEnded:Connect(function(Input, c)
+    if not c and Input.KeyCode == Enum.KeyCode.R then
+        DrawSettings.Rotating = false
+    end
+    if not c and Input.UserInputType == Enum.UserInputType.Touch or Input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+        if DrawSettings.FreeDrawActive then
+            if not DrawSettings.FreeDrawDrawing then
+                DrawSettings.FreeDrawDrawing = true
+                DrawSettings.FreeDrawLast = (plr:GetMouse().Hit.p)
+            else
+                DrawSettings.FreeDrawDrawing = false
+                DrawSettings.FreeDrawLast = nil
+            end
+            return
+        end
+        if DrawSettings.Drawing and DrawSettings.P1 and not DrawSettings.P2 then
+            DrawSettings.P2 = plr:GetMouse().Hit
+            return
+        end
+        if DrawSettings.Drawing and not DrawSettings.P1 then
+            DrawSettings.P1 = plr:GetMouse().Hit
+            DrawSettings.B = Instance.new("Part", workspace)
+            plr:GetMouse().TargetFilter = DrawSettings.B
+            local distance = (plr:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+            local mesh = Instance.new("BlockMesh", DrawSettings.B)
+            mesh.Scale = Vector3.new(.5, .5, 1)
+            DrawSettings.B.Name = "RayPart"
+            DrawSettings.B.BrickColor = BrickColor.Yellow()
+            DrawSettings.B.Material = Enum.Material.Neon
+            DrawSettings.B.Anchored = true
+            DrawSettings.B.CanCollide = false
+            DrawSettings.B.Transparency = .5
+            DrawSettings.B.formFactor = Enum.FormFactor.Custom
+            DrawSettings.B.Size = Vector3.new(.2, .2, distance)
+            DrawSettings.B.CFrame = CFrame.new(plr:GetMouse().Hit.p, DrawSettings.P1.Position) * CFrame.new(0, 0, -distance / 2)
+            return
+        end
+    end
+end)
+
+MAINDRAW.MouseEnter:Connect(function()
+    DrawSettings.HoveringOverGui = true
+end)
+MAINDRAW.MouseLeave:Connect(function()
+    DrawSettings.HoveringOverGui = false
+end)
+
+task.spawn(function()
+    while task.wait() do
+        if tonumber(RefreshRateInput.Text) then
+            wait(tonumber(RefreshRateInput.Text) or .7)
+            if #DrawSettings.GlobalRenders > 0 and DrawSettings.ActiveRender then
+                Fire_Replicated_Bullet(DrawSettings.GlobalRenders, DrawSettings.DOKILL)
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while wait() do
+        if DrawSettings.Selected and DrawSettings.Selected.Part and DrawSettings.Rotating then
+            -- Rotation logic can be added here if needed
+        end
+    end
+end)
+
+task.spawn(function()
+    local mouse = plr:GetMouse()
+    while wait() do
+        if DrawSettings.FreeDrawActive and DrawSettings.FreeDrawDrawing and DrawSettings.FreeDrawLast then
+            local curPos = mouse.Hit and mouse.Hit.p
+            if curPos and (curPos - DrawSettings.FreeDrawLast).magnitude > 0.5 then
+                local B = Instance.new("Part", workspace)
+                local distance = (curPos - DrawSettings.FreeDrawLast).magnitude
+                local mesh = Instance.new("BlockMesh", B)
+                mesh.Scale = Vector3.new(.5, .5, 1)
+                B.Name = "RayPart"
+                B.BrickColor = BrickColor.Yellow()
+                B.Material = Enum.Material.Neon
+                B.Anchored = true
+                B.CanCollide = false
+                B.Transparency = .93
+                B.formFactor = Enum.FormFactor.Custom
+                B.Size = Vector3.new(.2, .2, distance)
+                B.CFrame = CFrame.new(curPos, DrawSettings.FreeDrawLast) * CFrame.new(0, 0, -distance / 2)
+                AddBulletToTable(DrawSettings.FreeDrawLast, curPos, B)
+                DrawSettings.FreeDrawLast = curPos
+            end
+        end
+    end
+end)
+
+local RStep = game:service'RunService'.RenderStepped
+while RStep:Wait() do
+    if DrawSettings.Drawing then
+        repeat task.wait() until DrawSettings.B
+        repeat task.wait()
+            local distance = (plr:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+            DrawSettings.B.Size = Vector3.new(.2, .2, distance)
+            DrawSettings.B.CFrame = CFrame.new(plr:GetMouse().Hit.p, DrawSettings.P1.Position) * CFrame.new(0, 0, -distance / 2)
+        until DrawSettings.P2
+        AddBulletToTable(DrawSettings.P1.p, DrawSettings.P2.p, DrawSettings.B)
+        DrawSettings.B.Transparency = .93
+        DrawSettings.B = nil
+        DrawSettings.P1 = nil
+        DrawSettings.P2 = nil
+    end
+end
