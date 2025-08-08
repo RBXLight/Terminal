@@ -85,7 +85,8 @@ local DrawSettings = {
     Veto = false,
     VetoLoop = false,
     VetoAllLoop = false,
-    __loops = {}
+    __loops = {},
+        MultiHumanPlacement = false
 }
 
 local function stopLoop(name)
@@ -354,6 +355,7 @@ Buttons.FullHavocButton = makeButton("FullHavocButton", "FULL HAVOC: OFF", Color
 Buttons.ExtraTerrorButton = makeButton("ExtraTerrorButton", "EXTRA TERROR: OFF", Color3.fromRGB(255, 50, 50))
 Buttons.ApostlesForAllButton = makeButton("ApostlesForAllButton", "APOSTLES FOR ALL: OFF", Color3.fromRGB(100, 150, 255))
 Buttons.HumanLoopButton = makeButton("HumanLoopButton", "HUMAN LOOP: OFF", Color3.fromRGB(200, 150, 100))
+Buttons.MultiHumanLoopButton = makeButton("MultiHumanLoopButton", "MULTI HUMAN LOOP: OFF", Color3.fromRGB(255, 200, 150))
 
 
 
@@ -366,7 +368,7 @@ local tabButtonGroups = {
     Fun = {"ExtremeRandomButton", "ExtremeRandomLoopButton"},
     PvP = {"HeadshotButton", "HeadshotLoopButton"},
     VETO = {"VetoButton", "VetoLoopButton", "VetoForAllButton", "VetoForAllLoopButton"},
-    System = {"ActivateButton", "ExportButton", "ImportButton", "FullHavocButton", "ExtraTerrorButton", "ApostlesForAllButton", "HumanLoopButton"}
+    System = {"ActivateButton", "ExportButton", "ImportButton", "FullHavocButton", "ExtraTerrorButton", "ApostlesForAllButton", "HumanLoopButton", "MultiHumanLoopButton"}
 }
 for tab, btns in pairs(tabButtonGroups) do
     local secFrame = tabFrames[tab]
@@ -797,20 +799,45 @@ local function AddBulletToTable(Start,End,Bullet)
     }
 end
 
+
+
+local HttpService = game:GetService("HttpService")
+
+local function vec3_to_table(v)
+    if typeof(v) == "Vector3" then
+        return {x = v.X, y = v.Y, z = v.Z}
+    end
+    return nil
+end
+
+local function table_to_vec3(t)
+    if type(t) == "table" and t.x and t.y and t.z then
+        return Vector3.new(t.x, t.y, t.z)
+    end
+    return nil
+end
+
 Buttons.ExportButton.MouseButton1Click:Connect(function()
     local data = {}
     for _, b in ipairs(DrawSettings.GlobalRenders) do
-        if b then
-            table.insert(data, {START = b.START, END = b.END})
+        if b and b.START and b.END then
+            table.insert(data, {
+                START = vec3_to_table(b.START),
+                END   = vec3_to_table(b.END)
+            })
         end
     end
-    local encoded = game:GetService("HttpService"):JSONEncode(data)
-    setclipboard(encoded)
+
+    local encoded = HttpService:JSONEncode(data)
+    -- wrap setclipboard in pcall (may not be allowed in all environments)
+    pcall(function() setclipboard(encoded) end)
+
     Buttons.ExportButton.Text = "COPIED TO CLIPBOARD!"
     task.delay(2, function()
         Buttons.ExportButton.Text = "EXPORT DRAWINGS"
     end)
 end)
+
 
 Buttons.ImportButton.MouseButton1Click:Connect(function()
     local inputBox = Instance.new("TextBox")
@@ -818,14 +845,25 @@ Buttons.ImportButton.MouseButton1Click:Connect(function()
     inputBox.PlaceholderText = "Paste export code here"
     inputBox.Parent = tabFrames.System
     inputBox.Text = ""
-    inputBox.FocusLost:Connect(function()
+    inputBox.ClearTextOnFocus = false
+
+    inputBox.FocusLost:Connect(function(enterPressed)
         local code = inputBox.Text
-        pcall(function()
-            local data = game:GetService("HttpService"):JSONDecode(code)
-            for _, v in ipairs(data) do
-                local bullet = Instance.new("Part",workspace)
-                local mesh = Instance.new("BlockMesh",bullet)
-                mesh.Scale = Vector3.new(.5,.5,1)
+        -- decode safely
+        local ok, decoded = pcall(function() return HttpService:JSONDecode(code) end)
+        if not ok or type(decoded) ~= "table" then
+            warn("Import failed: invalid JSON")
+            inputBox:Destroy()
+            return
+        end
+
+        for _, v in ipairs(decoded) do
+            local startV = table_to_vec3(v.START)
+            local endV   = table_to_vec3(v.END)
+            if startV and endV then
+                local bullet = Instance.new("Part", workspace)
+                local mesh = Instance.new("BlockMesh", bullet)
+                mesh.Scale = Vector3.new(.5, .5, 1)
                 bullet.Name = "RayPart"
                 bullet.BrickColor = BrickColor.Yellow()
                 bullet.Material = Enum.Material.Neon
@@ -833,113 +871,100 @@ Buttons.ImportButton.MouseButton1Click:Connect(function()
                 bullet.CanCollide = false
                 bullet.Transparency = .5
                 bullet.formFactor = Enum.FormFactor.Custom
-                local distance = (v.END - v.START).Magnitude
-                bullet.Size = Vector3.new(.2,.2,distance)
-                bullet.CFrame = CFrame.new(v.END, v.START) * CFrame.new(0,0,-distance/2)
-                game:GetService("Debris"):AddItem(bullet,.25)
-                AddBulletToTable(v.START, v.END, bullet)
+                local distance = (endV - startV).Magnitude
+                bullet.Size = Vector3.new(.2, .2, distance)
+                bullet.CFrame = CFrame.new(endV, startV) * CFrame.new(0,0,-distance/2)
+                game:GetService("Debris"):AddItem(bullet, .25)
+
+                -- IMPORTANT: store in GlobalRenders so ActiveRender re-fires them
+                AddBulletToTable(startV, endV, bullet)
+
                 bullet.Transparency = .93
             end
-        end)
+        end
+
         inputBox:Destroy()
     end)
 end)
 
+
+-- === FULL HAVOC (MULTI-SPOT) ===
 Buttons.FullHavocButton.MouseButton1Click:Connect(function()
-    -- Toggle the feature
-    DrawSettings.FullHavocLoop = not DrawSettings.FullHavocLoop
+    if not DrawSettings.FullHavocLoop then
+        DrawSettings.FullHavocLoop = true
+        DrawSettings.FullHavocPlacement = true
 
-    if DrawSettings.FullHavocLoop then
-        -- Prepare storage for per-origin entries and id counter
-        DrawSettings.FullHavocEntries = DrawSettings.FullHavocEntries or {}
-        DrawSettings.FullHavocNextId = DrawSettings.FullHavocNextId or 0
+        DrawSettings.FullHavocEntries = {}
+        DrawSettings.FullHavocNextId = 0
 
-        Buttons.FullHavocButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE"
-        Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255,255,125)
+        Buttons.FullHavocButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE (Press E to stop placing)"
+        Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255, 255, 125)
 
-        -- Connection that handles mouse clicks while the feature is active
-        local clickConn
-        clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        DrawSettings.FullHavocClickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
             if gameProcessed then return end
-            local mouse = plr:GetMouse()
 
-            -- Left click: add a new independent havoc origin
-            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
-                local pos = mouse.Hit.p
-                local origin = Vector3.new(pos.X, pos.Y, pos.Z) -- immutable copy
+            -- Left click: add origin
+            if DrawSettings.FullHavocPlacement and input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local origin = Vector3.new(mouse.Hit.p.X, mouse.Hit.p.Y, mouse.Hit.p.Z)
 
-                DrawSettings.FullHavocNextId = DrawSettings.FullHavocNextId + 1
+                DrawSettings.FullHavocNextId += 1
                 local id = DrawSettings.FullHavocNextId
                 local loopName = "FullHavoc_" .. tostring(id)
 
-                table.insert(DrawSettings.FullHavocEntries, {
-                    id = id,
-                    origin = origin,
-                    loopName = loopName
-                })
+                table.insert(DrawSettings.FullHavocEntries, {id = id, origin = origin, loopName = loopName})
 
-                Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#DrawSettings.FullHavocEntries)
+                Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#DrawSettings.FullHavocEntries) .. " (Press E to stop placing)"
                 Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(73, 255, 125)
 
-                -- Start a dedicated loop for this origin (independent of other origins)
                 startLoop(loopName, function(loop)
                     while loop.running do
                         local args = {}
-                        -- number of directions per origin (adjust as needed)
                         for i = 1, 100 do
                             local randomVec = origin + Vector3.new(
                                 math.random(-150, 150),
                                 math.random(-75, 75),
                                 math.random(-150, 150)
                             )
-
                             local dir = (randomVec - origin)
                             if dir.Magnitude > 0 then
-                                local perp
-                                if math.abs(dir.Unit.Y) < 0.99 then
-                                    perp = dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit
-                                else
-                                    perp = dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
-                                end
-
-                                local thickness = 1.5
-                                local count = 25 -- boldness (parallel rays per direction)
-
-                                for j = 1, count do
-                                    local offset = (((j - 1) / (count - 1)) - 0.5) * thickness
-                                    table.insert(args, {
-                                        START = origin + perp * offset,
-                                        END = randomVec + perp * offset
-                                    })
+                                local perp = math.abs(dir.Unit.Y) < 0.99 and dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit or dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
+                                for j = 1, 25 do
+                                    local offset = (((j - 1) / 24) - 0.5) * 1.5
+                                    table.insert(args, {START = origin + perp * offset, END = randomVec + perp * offset})
                                 end
                             end
                         end
-
-                        if #args > 0 then
-                            Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
-                        end
-
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
                         for _ = 1, 5 do if not loop.running then return end task.wait(0.05) end
                     end
                 end)
+            end
 
-            -- Right click: remove last added origin (and stop its loop)
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
+            -- Right click: remove last
+            if DrawSettings.FullHavocPlacement and input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
                 local entries = DrawSettings.FullHavocEntries
                 if entries and #entries > 0 then
-                    local entry = table.remove(entries) -- removes last
+                    local entry = table.remove(entries)
                     if entry and entry.loopName then
                         stopLoop(entry.loopName)
                     end
-                    Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#entries)
+                    Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#entries) .. " (Press E to stop placing)"
                 end
+            end
+
+            -- Press E: exit placement mode, keep loops running
+            if input.KeyCode == Enum.KeyCode.E and DrawSettings.FullHavocPlacement then
+                DrawSettings.FullHavocPlacement = false
+                Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#DrawSettings.FullHavocEntries)
             end
         end)
 
-        DrawSettings.FullHavocClickConn = clickConn
-
     else
-        -- Turn feature off: disconnect input and stop all per-origin loops
+        -- Toggle off: stop all
+        DrawSettings.FullHavocLoop = false
+        DrawSettings.FullHavocPlacement = false
+
         Buttons.FullHavocButton.Text = "FULL HAVOC: OFF"
         Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255, 100, 100)
 
@@ -960,48 +985,41 @@ Buttons.FullHavocButton.MouseButton1Click:Connect(function()
     end
 end)
 
+
 -- === EXTRA TERROR FEATURE ===
 -- === EXTRA TERROR (MULTI-SPOT) ===
+-- === EXTRA TERROR (MULTI-SPOT) ===
 Buttons.ExtraTerrorButton.MouseButton1Click:Connect(function()
-    DrawSettings.ExtraTerrorLoop = not DrawSettings.ExtraTerrorLoop
+    if not DrawSettings.ExtraTerrorLoop then
+        DrawSettings.ExtraTerrorLoop = true
+        DrawSettings.ExtraTerrorPlacement = true
 
-    if DrawSettings.ExtraTerrorLoop then
         DrawSettings.ExtraTerrorEntries = {}
         DrawSettings.ExtraTerrorNextId = 0
 
-        Buttons.ExtraTerrorButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE"
+        Buttons.ExtraTerrorButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE (Press E to stop placing)"
         Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(255, 255, 125)
 
-        -- Handle clicks for adding/removing spots
-        local clickConn
-        clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        DrawSettings.ExtraTerrorClickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
             if gameProcessed then return end
 
-            local mouse = plr:GetMouse()
-
-            -- LEFT CLICK → add new terror spot
-            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
-                local pos = mouse.Hit.p
-                local origin = Vector3.new(pos.X, pos.Y, pos.Z)
+            -- Left click: add origin
+            if DrawSettings.ExtraTerrorPlacement and input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local origin = Vector3.new(mouse.Hit.p.X, mouse.Hit.p.Y, mouse.Hit.p.Z)
 
                 DrawSettings.ExtraTerrorNextId += 1
                 local id = DrawSettings.ExtraTerrorNextId
                 local loopName = "ExtraTerror_" .. tostring(id)
 
-                table.insert(DrawSettings.ExtraTerrorEntries, {
-                    id = id,
-                    origin = origin,
-                    loopName = loopName
-                })
+                table.insert(DrawSettings.ExtraTerrorEntries, {id = id, origin = origin, loopName = loopName})
 
-                Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#DrawSettings.ExtraTerrorEntries)
+                Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#DrawSettings.ExtraTerrorEntries) .. " (Press E to stop placing)"
                 Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(73, 255, 125)
 
-                -- Start a dedicated loop for this origin
                 startLoop(loopName, function(loop)
-                    local directions = 40   -- start high
-                    local boldness = 20     -- start thick
-
+                    local directions = 40
+                    local boldness = 20
                     while loop.running do
                         local args = {}
                         for i = 1, directions do
@@ -1012,45 +1030,45 @@ Buttons.ExtraTerrorButton.MouseButton1Click:Connect(function()
                             )
                             local dir = (randomVec - origin)
                             if dir.Magnitude > 0 then
-                                local perp
-                                if math.abs(dir.Unit.Y) < 0.99 then
-                                    perp = dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit
-                                else
-                                    perp = dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
-                                end
+                                local perp = math.abs(dir.Unit.Y) < 0.99 and dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit or dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
                                 for j = 1, boldness do
                                     local offset = (((j - 1) / (boldness - 1)) - 0.5) * 1.5
                                     table.insert(args, {START = origin + perp * offset, END = randomVec + perp * offset})
                                 end
                             end
                         end
-                        if #args > 0 then
-                            Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
-                        end
-
-                        -- FAST ramp-up
-                        task.wait(0.2)  -- update every 0.2s
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        task.wait(0.2)
                         directions += 20
                         boldness += 10
                     end
                 end)
+            end
 
-            -- RIGHT CLICK → remove last added spot
-            elseif input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
+            -- Right click: remove last
+            if DrawSettings.ExtraTerrorPlacement and input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
                 local entries = DrawSettings.ExtraTerrorEntries
                 if entries and #entries > 0 then
                     local entry = table.remove(entries)
                     if entry and entry.loopName then
                         stopLoop(entry.loopName)
                     end
-                    Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#entries)
+                    Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#entries) .. " (Press E to stop placing)"
                 end
+            end
+
+            -- Press E: exit placement mode, keep loops running
+            if input.KeyCode == Enum.KeyCode.E and DrawSettings.ExtraTerrorPlacement then
+                DrawSettings.ExtraTerrorPlacement = false
+                Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#DrawSettings.ExtraTerrorEntries)
             end
         end)
 
-        DrawSettings.ExtraTerrorClickConn = clickConn
-
     else
+        -- Toggle off: stop all
+        DrawSettings.ExtraTerrorLoop = false
+        DrawSettings.ExtraTerrorPlacement = false
+
         Buttons.ExtraTerrorButton.Text = "EXTRA TERROR: OFF"
         Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(255, 50, 50)
 
@@ -1066,9 +1084,11 @@ Buttons.ExtraTerrorButton.MouseButton1Click:Connect(function()
                 end
             end
         end
+
         DrawSettings.ExtraTerrorEntries = nil
     end
 end)
+
 
 
 
@@ -1131,6 +1151,89 @@ Buttons.HumanLoopButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- === MULTI HUMAN LOOP ===
+Buttons.MultiHumanLoopButton.MouseButton1Click:Connect(function()
+    if not DrawSettings.MultiHumanLoop then
+        -- Turn on loop
+        DrawSettings.MultiHumanLoop = true
+        DrawSettings.MultiHumanPlacement = true
+
+        Buttons.MultiHumanLoopButton.Text = "CLICK TO PLACE HUMANS... (Press E to stop placing)"
+        Buttons.MultiHumanLoopButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        DrawSettings.MultiHumanEntries = {}
+        DrawSettings.MultiHumanNextId = 0
+
+        -- Input handling
+        DrawSettings.MultiHumanClickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+
+            -- Left-click → place new human
+            if DrawSettings.MultiHumanPlacement 
+                and input.UserInputType == Enum.UserInputType.MouseButton1 
+                and not DrawSettings.HoveringOverGui then
+
+                local mouse = plr:GetMouse()
+                local pos = mouse.Hit.p
+
+                DrawSettings.MultiHumanNextId += 1
+                local id = DrawSettings.MultiHumanNextId
+                local loopName = "MultiHuman_" .. tostring(id)
+
+                table.insert(DrawSettings.MultiHumanEntries, {
+                    id = id,
+                    origin = pos,
+                    loopName = loopName
+                })
+
+                Buttons.MultiHumanLoopButton.Text = 
+                    "HUMANS PLACED: " .. tostring(#DrawSettings.MultiHumanEntries) .. " (Press E to stop placing)"
+                Buttons.MultiHumanLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                -- Start drawing loop for this human
+                startLoop(loopName, function(loop)
+                    while loop.running do
+                        local args = CreateHumanArgs(pos, giantScale or 12) -- giantScale fallback
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        task.wait(0.4)
+                    end
+                end)
+            end
+
+            -- Press E → exit placement mode but keep loops running
+            if input.KeyCode == Enum.KeyCode.E and DrawSettings.MultiHumanPlacement then
+                DrawSettings.MultiHumanPlacement = false
+                Buttons.MultiHumanLoopButton.Text = 
+                    "HUMANS PLACED: " .. tostring(#DrawSettings.MultiHumanEntries)
+            end
+        end)
+
+    else
+        -- Turn off everything
+        DrawSettings.MultiHumanLoop = false
+        DrawSettings.MultiHumanPlacement = false
+
+        Buttons.MultiHumanLoopButton.Text = "MULTI HUMAN LOOP: OFF"
+        Buttons.MultiHumanLoopButton.TextColor3 = Color3.fromRGB(255, 200, 150)
+
+        -- Disconnect click listener
+        if DrawSettings.MultiHumanClickConn then
+            DrawSettings.MultiHumanClickConn:Disconnect()
+            DrawSettings.MultiHumanClickConn = nil
+        end
+
+        -- Stop all active human loops
+        if DrawSettings.MultiHumanEntries then
+            for _, entry in ipairs(DrawSettings.MultiHumanEntries) do
+                if entry and entry.loopName then
+                    stopLoop(entry.loopName)
+                end
+            end
+        end
+
+        DrawSettings.MultiHumanEntries = nil
+    end
+end)
 
 
 
