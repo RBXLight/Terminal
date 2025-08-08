@@ -152,7 +152,7 @@ TitleLabel.BackgroundTransparency = 1
 TitleLabel.Position = UDim2.new(0.025, 0, 0, 0)
 TitleLabel.Size = UDim2.new(0.7, 0, 1, 0)
 TitleLabel.Font = Enum.Font.GothamBlack
-TitleLabel.Text = "⭐ H17S3 Terror+ Drawing Tool ⭐"
+TitleLabel.Text = "⭐    Drawtool V1   ⭐"
 TitleLabel.TextColor3 = Color3.fromRGB(225, 225, 255)
 TitleLabel.TextStrokeTransparency = 0.73
 TitleLabel.TextScaled = true
@@ -348,6 +348,16 @@ Buttons.VetoButton = makeButton("VetoButton", "POP VETO", sectionColors.VETO)
 Buttons.VetoLoopButton = makeButton("VetoLoopButton", "VETO LOOP: OFF", sectionColors.VETO)
 Buttons.VetoForAllButton = makeButton("VetoForAllButton", "VETO FOR ALL", Color3.fromRGB(185, 74, 255))
 Buttons.VetoForAllLoopButton = makeButton("VetoForAllLoopButton", "VETO FOR ALL LOOP: OFF", Color3.fromRGB(185, 74, 255))
+Buttons.ExportButton = makeButton("ExportButton", "EXPORT DRAWINGS", sectionColors.System)
+Buttons.ImportButton = makeButton("ImportButton", "IMPORT DRAWINGS", sectionColors.System)
+Buttons.FullHavocButton = makeButton("FullHavocButton", "FULL HAVOC: OFF", Color3.fromRGB(255, 100, 100))
+Buttons.ExtraTerrorButton = makeButton("ExtraTerrorButton", "EXTRA TERROR: OFF", Color3.fromRGB(255, 50, 50))
+Buttons.ApostlesForAllButton = makeButton("ApostlesForAllButton", "APOSTLES FOR ALL: OFF", Color3.fromRGB(100, 150, 255))
+Buttons.HumanLoopButton = makeButton("HumanLoopButton", "HUMAN LOOP: OFF", Color3.fromRGB(200, 150, 100))
+
+
+
+
 
 local tabButtonGroups = {
     Drawing = {"ActivateDrawing", "BoldDrawingButton"},
@@ -356,7 +366,7 @@ local tabButtonGroups = {
     Fun = {"ExtremeRandomButton", "ExtremeRandomLoopButton"},
     PvP = {"HeadshotButton", "HeadshotLoopButton"},
     VETO = {"VetoButton", "VetoLoopButton", "VetoForAllButton", "VetoForAllLoopButton"},
-    System = {"ActivateButton"}
+    System = {"ActivateButton", "ExportButton", "ImportButton", "FullHavocButton", "ExtraTerrorButton", "ApostlesForAllButton", "HumanLoopButton"}
 }
 for tab, btns in pairs(tabButtonGroups) do
     local secFrame = tabFrames[tab]
@@ -516,6 +526,153 @@ local function drawVetoWord(headPosition, facingCF)
     Fire_Replicated_Bullet(args, false)
 end
 
+
+-- ===== Dominant Pose Human Shape (Massive) =====
+-- ===== Dominant Pose Human with Bold Lines, Sharper Sword, and Chest Star =====
+local DOMINANT_HUMAN = {
+    -- Legs (wide stance)
+    {Vector3.new(-4, 0, 0), Vector3.new(-2, 10, 0)}, -- left leg
+    {Vector3.new(4, 0, 0), Vector3.new(2, 10, 0)},   -- right leg
+
+    -- Hips and torso (slight lean back)
+    {Vector3.new(-2, 10, 0), Vector3.new(2, 10, 0)},  -- hips
+    {Vector3.new(0, 10, 0), Vector3.new(0, 26, -1)},  -- spine
+
+    -- Broad shoulders
+    {Vector3.new(-6, 26, -1), Vector3.new(6, 26, -1)},
+
+    -- Left arm down
+    {Vector3.new(-6, 26, -1), Vector3.new(-10, 15, -1)},
+
+    -- Right arm holding sword
+    {Vector3.new(6, 26, -1), Vector3.new(8, 40, -1)},  -- forearm
+    {Vector3.new(8, 40, -1), Vector3.new(8, 75, -1)},  -- sword blade
+    {Vector3.new(8, 75, -1), Vector3.new(7, 78, -1)},  -- tip left
+    {Vector3.new(8, 75, -1), Vector3.new(9, 78, -1)},  -- tip right
+    {Vector3.new(7, 78, -1), Vector3.new(9, 78, -1)},  -- tip join
+    {Vector3.new(7, 40, -1), Vector3.new(9, 40, -1)},  -- crossguard
+
+    -- Head (big square outline)
+     {Vector3.new(-3, 28, 0), Vector3.new(3, 28, 0)},
+    {Vector3.new(3, 28, 0), Vector3.new(3, 34, 0)},
+    {Vector3.new(3, 34, 0), Vector3.new(-3, 34, 0)},
+    {Vector3.new(-3, 34, 0), Vector3.new(-3, 28, 0)},
+
+    -- Star on torso (five points)
+    {Vector3.new(0, 20, 0), Vector3.new(1, 22, 0)},
+    {Vector3.new(1, 22, 0), Vector3.new(3, 22, 0)},
+    {Vector3.new(3, 22, 0), Vector3.new(1.5, 23.5, 0)},
+    {Vector3.new(1.5, 23.5, 0), Vector3.new(2.2, 26, 0)},
+    {Vector3.new(2.2, 26, 0), Vector3.new(0, 24.5, 0)},
+    {Vector3.new(0, 24.5, 0), Vector3.new(-2.2, 26, 0)},
+    {Vector3.new(-2.2, 26, 0), Vector3.new(-1.5, 23.5, 0)},
+    {Vector3.new(-1.5, 23.5, 0), Vector3.new(-3, 22, 0)},
+    {Vector3.new(-3, 22, 0), Vector3.new(-1, 22, 0)},
+    {Vector3.new(-1, 22, 0), Vector3.new(0, 20, 0)},
+}
+
+
+local function CreateHumanArgs(position, scale)
+    local args = {}
+    scale = scale or 12 -- massive figure
+    local thickness = 3 -- how bold each line is (in studs)
+    local offsets = {-thickness, 0, thickness}
+
+    for _, seg in ipairs(DOMINANT_HUMAN) do
+        local startBase = position + (seg[1] * scale)
+        local endBase = position + (seg[2] * scale)
+        local dir = (endBase - startBase)
+        local perp = dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit -- perpendicular vector
+
+        for _, off in ipairs(offsets) do
+            table.insert(args, {
+                START = startBase + perp * off,
+                END = endBase + perp * off
+            })
+        end
+    end
+    return args
+end
+
+
+local APOSTLES_LETTERS = {
+    A = {
+        {Vector3.new(0,0,0), Vector3.new(0.5,1.6,0)},
+        {Vector3.new(1,0,0), Vector3.new(0.5,1.6,0)},
+        {Vector3.new(0.25,0.8,0), Vector3.new(0.75,0.8,0)},
+    },
+    P = {
+        {Vector3.new(0,0,0), Vector3.new(0,1.6,0)},
+        {Vector3.new(0,1.6,0), Vector3.new(0.75,1.6,0)},
+        {Vector3.new(0.75,1.6,0), Vector3.new(0.75,0.9,0)},
+        {Vector3.new(0.75,0.9,0), Vector3.new(0,0.9,0)},
+    },
+    S = {
+          -- top curve
+    {Vector3.new(0.8,1.6,0), Vector3.new(0.2,1.6,0)},
+    {Vector3.new(0.2,1.6,0), Vector3.new(0.0,1.4,0)},
+    {Vector3.new(0.0,1.4,0), Vector3.new(0.2,1.2,0)},
+    {Vector3.new(0.2,1.2,0), Vector3.new(0.8,1.0,0)},
+
+    -- middle connector
+    {Vector3.new(0.8,1.0,0), Vector3.new(0.2,0.8,0)},
+
+    -- bottom curve
+    {Vector3.new(0.2,0.8,0), Vector3.new(0.0,0.6,0)},
+    {Vector3.new(0.0,0.6,0), Vector3.new(0.2,0.4,0)},
+    {Vector3.new(0.2,0.4,0), Vector3.new(0.8,0.0,0)},
+    {Vector3.new(0.8,0.0,0), Vector3.new(0.2,0.0,0)},
+    },
+    T = {
+        {Vector3.new(0,1.6,0), Vector3.new(1,1.6,0)},
+        {Vector3.new(0.5,1.6,0), Vector3.new(0.5,0,0)},
+    },
+    L = {
+        {Vector3.new(0,1.6,0), Vector3.new(0,0,0)},
+        {Vector3.new(0,0,0), Vector3.new(1,0,0)},
+    },
+    -- E and O exist in VETO_LETTERS already (we'll reuse them)
+}
+
+-- CreateTextArgs(word, headPosition, facingCF, scale)
+-- returns an array of {START=vec3, END=vec3} segments for Fire_Replicated_Bullet
+local function CreateTextArgs(word, headPosition, facingCF, scale)
+    local args = {}
+    scale = scale or 0.47
+    local letter_gap = 0.28
+    local letters = {}
+    word = tostring(word):upper()
+    for i = 1, #word do
+        letters[i] = word:sub(i,i)
+    end
+    local total_letters = #letters
+    if total_letters == 0 then return args end
+
+    local word_width = ((total_letters - 1) * (1 + letter_gap) + 1) * scale
+    local local_offset = Vector3.new(-word_width/2, 1.05, 0)
+    local facing = facingCF or CFrame.new()
+
+    for i, ch in ipairs(letters) do
+        local xShift = (i-1) * (1 + letter_gap) * scale
+        -- prefer APOSTLES_LETTERS, fall back to VETO_LETTERS if available (E, O, etc.)
+        local def = APOSTLES_LETTERS[ch] or VETO_LETTERS[ch]
+        if def then
+            for _, seg in ipairs(def) do
+                local p1 = (Vector3.new(xShift + seg[1].X * scale, seg[1].Y * scale, 0) + local_offset)
+                local p2 = (Vector3.new(xShift + seg[2].X * scale, seg[2].Y * scale, 0) + local_offset)
+                local p1w = (facing * p1) + headPosition
+                local p2w = (facing * p2) + headPosition
+                table.insert(args, {START = p1w, END = p2w})
+            end
+        end
+    end
+
+    return args
+end
+
+
+
+
 local function drawStar(center, bold)
     local args = {}
     local radius = 18
@@ -537,7 +694,7 @@ local function drawStar(center, bold)
                 perp = dir.Unit:Cross(Vector3.new(1,0,0)).Unit
             end
             local thickness = 2.5
-            local count = 16
+            local count = 25
             for j=1,count do
                 local offset = (((j-1)/(count-1))-0.5) * thickness
                 local startOffset = from + perp * offset
@@ -640,6 +797,282 @@ local function AddBulletToTable(Start,End,Bullet)
     }
 end
 
+Buttons.ExportButton.MouseButton1Click:Connect(function()
+    local data = {}
+    for _, b in ipairs(DrawSettings.GlobalRenders) do
+        if b then
+            table.insert(data, {START = b.START, END = b.END})
+        end
+    end
+    local encoded = game:GetService("HttpService"):JSONEncode(data)
+    setclipboard(encoded)
+    Buttons.ExportButton.Text = "COPIED TO CLIPBOARD!"
+    task.delay(2, function()
+        Buttons.ExportButton.Text = "EXPORT DRAWINGS"
+    end)
+end)
+
+Buttons.ImportButton.MouseButton1Click:Connect(function()
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(1, 0, 0, 36)
+    inputBox.PlaceholderText = "Paste export code here"
+    inputBox.Parent = tabFrames.System
+    inputBox.Text = ""
+    inputBox.FocusLost:Connect(function()
+        local code = inputBox.Text
+        pcall(function()
+            local data = game:GetService("HttpService"):JSONDecode(code)
+            for _, v in ipairs(data) do
+                local bullet = Instance.new("Part",workspace)
+                local mesh = Instance.new("BlockMesh",bullet)
+                mesh.Scale = Vector3.new(.5,.5,1)
+                bullet.Name = "RayPart"
+                bullet.BrickColor = BrickColor.Yellow()
+                bullet.Material = Enum.Material.Neon
+                bullet.Anchored = true
+                bullet.CanCollide = false
+                bullet.Transparency = .5
+                bullet.formFactor = Enum.FormFactor.Custom
+                local distance = (v.END - v.START).Magnitude
+                bullet.Size = Vector3.new(.2,.2,distance)
+                bullet.CFrame = CFrame.new(v.END, v.START) * CFrame.new(0,0,-distance/2)
+                game:GetService("Debris"):AddItem(bullet,.25)
+                AddBulletToTable(v.START, v.END, bullet)
+                bullet.Transparency = .93
+            end
+        end)
+        inputBox:Destroy()
+    end)
+end)
+
+Buttons.FullHavocButton.MouseButton1Click:Connect(function()
+    -- Toggle the feature
+    DrawSettings.FullHavocLoop = not DrawSettings.FullHavocLoop
+
+    if DrawSettings.FullHavocLoop then
+        -- Prepare storage for per-origin entries and id counter
+        DrawSettings.FullHavocEntries = DrawSettings.FullHavocEntries or {}
+        DrawSettings.FullHavocNextId = DrawSettings.FullHavocNextId or 0
+
+        Buttons.FullHavocButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE"
+        Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255,255,125)
+
+        -- Connection that handles mouse clicks while the feature is active
+        local clickConn
+        clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            local mouse = plr:GetMouse()
+
+            -- Left click: add a new independent havoc origin
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local pos = mouse.Hit.p
+                local origin = Vector3.new(pos.X, pos.Y, pos.Z) -- immutable copy
+
+                DrawSettings.FullHavocNextId = DrawSettings.FullHavocNextId + 1
+                local id = DrawSettings.FullHavocNextId
+                local loopName = "FullHavoc_" .. tostring(id)
+
+                table.insert(DrawSettings.FullHavocEntries, {
+                    id = id,
+                    origin = origin,
+                    loopName = loopName
+                })
+
+                Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#DrawSettings.FullHavocEntries)
+                Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                -- Start a dedicated loop for this origin (independent of other origins)
+                startLoop(loopName, function(loop)
+                    while loop.running do
+                        local args = {}
+                        -- number of directions per origin (adjust as needed)
+                        for i = 1, 100 do
+                            local randomVec = origin + Vector3.new(
+                                math.random(-150, 150),
+                                math.random(-75, 75),
+                                math.random(-150, 150)
+                            )
+
+                            local dir = (randomVec - origin)
+                            if dir.Magnitude > 0 then
+                                local perp
+                                if math.abs(dir.Unit.Y) < 0.99 then
+                                    perp = dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit
+                                else
+                                    perp = dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
+                                end
+
+                                local thickness = 1.5
+                                local count = 25 -- boldness (parallel rays per direction)
+
+                                for j = 1, count do
+                                    local offset = (((j - 1) / (count - 1)) - 0.5) * thickness
+                                    table.insert(args, {
+                                        START = origin + perp * offset,
+                                        END = randomVec + perp * offset
+                                    })
+                                end
+                            end
+                        end
+
+                        if #args > 0 then
+                            Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        end
+
+                        for _ = 1, 5 do if not loop.running then return end task.wait(0.05) end
+                    end
+                end)
+
+            -- Right click: remove last added origin (and stop its loop)
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
+                local entries = DrawSettings.FullHavocEntries
+                if entries and #entries > 0 then
+                    local entry = table.remove(entries) -- removes last
+                    if entry and entry.loopName then
+                        stopLoop(entry.loopName)
+                    end
+                    Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#entries)
+                end
+            end
+        end)
+
+        DrawSettings.FullHavocClickConn = clickConn
+
+    else
+        -- Turn feature off: disconnect input and stop all per-origin loops
+        Buttons.FullHavocButton.Text = "FULL HAVOC: OFF"
+        Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+        if DrawSettings.FullHavocClickConn then
+            DrawSettings.FullHavocClickConn:Disconnect()
+            DrawSettings.FullHavocClickConn = nil
+        end
+
+        if DrawSettings.FullHavocEntries then
+            for _, entry in ipairs(DrawSettings.FullHavocEntries) do
+                if entry and entry.loopName then
+                    stopLoop(entry.loopName)
+                end
+            end
+        end
+
+        DrawSettings.FullHavocEntries = nil
+    end
+end)
+
+-- === EXTRA TERROR FEATURE ===
+-- === EXTRA TERROR (MULTI-SPOT) ===
+Buttons.ExtraTerrorButton.MouseButton1Click:Connect(function()
+    DrawSettings.ExtraTerrorLoop = not DrawSettings.ExtraTerrorLoop
+
+    if DrawSettings.ExtraTerrorLoop then
+        DrawSettings.ExtraTerrorEntries = {}
+        DrawSettings.ExtraTerrorNextId = 0
+
+        Buttons.ExtraTerrorButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE"
+        Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        -- Handle clicks for adding/removing spots
+        local clickConn
+        clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+
+            local mouse = plr:GetMouse()
+
+            -- LEFT CLICK → add new terror spot
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local pos = mouse.Hit.p
+                local origin = Vector3.new(pos.X, pos.Y, pos.Z)
+
+                DrawSettings.ExtraTerrorNextId += 1
+                local id = DrawSettings.ExtraTerrorNextId
+                local loopName = "ExtraTerror_" .. tostring(id)
+
+                table.insert(DrawSettings.ExtraTerrorEntries, {
+                    id = id,
+                    origin = origin,
+                    loopName = loopName
+                })
+
+                Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#DrawSettings.ExtraTerrorEntries)
+                Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                -- Start a dedicated loop for this origin
+                startLoop(loopName, function(loop)
+                    local directions = 40   -- start high
+                    local boldness = 20     -- start thick
+
+                    while loop.running do
+                        local args = {}
+                        for i = 1, directions do
+                            local randomVec = origin + Vector3.new(
+                                math.random(-150, 150),
+                                math.random(-75, 75),
+                                math.random(-150, 150)
+                            )
+                            local dir = (randomVec - origin)
+                            if dir.Magnitude > 0 then
+                                local perp
+                                if math.abs(dir.Unit.Y) < 0.99 then
+                                    perp = dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit
+                                else
+                                    perp = dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
+                                end
+                                for j = 1, boldness do
+                                    local offset = (((j - 1) / (boldness - 1)) - 0.5) * 1.5
+                                    table.insert(args, {START = origin + perp * offset, END = randomVec + perp * offset})
+                                end
+                            end
+                        end
+                        if #args > 0 then
+                            Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        end
+
+                        -- FAST ramp-up
+                        task.wait(0.2)  -- update every 0.2s
+                        directions += 20
+                        boldness += 10
+                    end
+                end)
+
+            -- RIGHT CLICK → remove last added spot
+            elseif input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
+                local entries = DrawSettings.ExtraTerrorEntries
+                if entries and #entries > 0 then
+                    local entry = table.remove(entries)
+                    if entry and entry.loopName then
+                        stopLoop(entry.loopName)
+                    end
+                    Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#entries)
+                end
+            end
+        end)
+
+        DrawSettings.ExtraTerrorClickConn = clickConn
+
+    else
+        Buttons.ExtraTerrorButton.Text = "EXTRA TERROR: OFF"
+        Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+
+        if DrawSettings.ExtraTerrorClickConn then
+            DrawSettings.ExtraTerrorClickConn:Disconnect()
+            DrawSettings.ExtraTerrorClickConn = nil
+        end
+
+        if DrawSettings.ExtraTerrorEntries then
+            for _, entry in ipairs(DrawSettings.ExtraTerrorEntries) do
+                if entry and entry.loopName then
+                    stopLoop(entry.loopName)
+                end
+            end
+        end
+        DrawSettings.ExtraTerrorEntries = nil
+    end
+end)
+
+
+
+
 -- Button Handlers
 Buttons.VetoForAllButton.MouseButton1Click:Connect(function()
     drawVetoForAll()
@@ -659,6 +1092,98 @@ Buttons.VetoForAllLoopButton.MouseButton1Click:Connect(function()
         stopLoop("VetoAllLoop")
     end
 end)
+
+
+local giantScale = 12 -- even bigger
+
+Buttons.HumanLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.HumanLoop = not DrawSettings.HumanLoop
+
+    if DrawSettings.HumanLoop then
+        Buttons.HumanLoopButton.Text = "CLICK TO PLACE HUMAN..."
+        Buttons.HumanLoopButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        local clickConn
+        clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local pos = mouse.Hit.p
+
+                Buttons.HumanLoopButton.Text = "HUMAN LOOP: ON"
+                Buttons.HumanLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                startLoop("HumanLoop", function(loop)
+                    while loop.running do
+                        local args = CreateHumanArgs(pos, giantScale)
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        task.wait(0.4)
+                    end
+                end)
+
+                clickConn:Disconnect()
+            end
+        end)
+    else
+        Buttons.HumanLoopButton.Text = "HUMAN LOOP: OFF"
+        Buttons.HumanLoopButton.TextColor3 = Color3.fromRGB(200, 150, 100)
+        stopLoop("HumanLoop")
+    end
+end)
+
+
+
+
+Buttons.ApostlesForAllButton.MouseButton1Click:Connect(function()
+    DrawSettings.ApostlesAllLoop = not DrawSettings.ApostlesAllLoop
+
+    if DrawSettings.ApostlesAllLoop then
+        Buttons.ApostlesForAllButton.Text = "APOSTLES FOR ALL: ON"
+        Buttons.ApostlesForAllButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+        -- Main loop: build ALL players' segments first, then call Fire_Replicated_Bullet ONCE per tick
+        startLoop("ApostlesAllLoop", function(loop)
+            while loop.running do
+                local allArgs = {}
+
+                -- get players including yourself (same behavior as old Veto for all)
+                for _, player in ipairs(getOtherPlayers(true)) do
+                    local head = player.Character and player.Character:FindFirstChild("Head")
+                    local root = player.Character and player.Character.PrimaryPart
+                    if head and root then
+                        -- orient text so it faces the same direction as player's torso
+                        local look = root.CFrame.LookVector
+                        local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+                        local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+
+                        -- slightly above the center of their head (tweak Y offset if needed)
+                        local drawPos = head.Position + Vector3.new(0, 0.9, 0)
+
+                        -- create the segments for the word "APOSTLES"
+                        local segs = CreateTextArgs("APOSTLES", drawPos, facingCF, 0.42)
+                        for _, s in ipairs(segs) do
+                            table.insert(allArgs, s)
+                        end
+                    end
+                end
+
+                -- fire once for everyone (this avoids per-player blocking)
+                if #allArgs > 0 then
+                    Fire_Replicated_Bullet(allArgs, DrawSettings.DOKILL)
+                end
+
+                task.wait(0.6) -- one-second cadence (simultaneous for all players)
+            end
+        end)
+
+    else
+        Buttons.ApostlesForAllButton.Text = "APOSTLES FOR ALL: OFF"
+        Buttons.ApostlesForAllButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+        stopLoop("ApostlesAllLoop")
+    end
+end)
+
+
 Buttons.StarButton.MouseButton1Click:Connect(function()
     drawStar(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new(), false)
 end)
@@ -980,7 +1505,7 @@ while RStep:Wait() do
                 perp = dir.Unit:Cross(Vector3.new(1,0,0)).Unit
             end
             local thickness = 1.2
-            local count = 20
+            local count = 40
             for i=1,count do
                 local offset = (((i-1)/(count-1))-0.5) * thickness
                 local startOffset = origin + perp * offset
