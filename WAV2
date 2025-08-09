@@ -5819,10 +5819,7 @@ end
 			Notif("Error", "Not a valid player.")
 		end
 
-elseif cm("drawtool") or cm("dt") then
-loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/Admiral's%20Drawtool"))()
-Notify("Success", "Drawtool loaded")
-end
+
 
 
 	elseif cm("unwhitelist") or cm("unwl") or cm("unignore") or cm("blacklist") then
