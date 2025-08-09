@@ -370,6 +370,8 @@ Buttons.SmiteButton = makeButton("SmiteButton", "SMITE: OFF", neutralBtn)
 Buttons.FlingRayButton = makeButton("FlingRayButton", "FLING RAY: OFF", neutralBtn)
 Buttons.StarRainButton = makeButton("StarRainButton", "STAR RAIN: OFF", neutralBtn)
 Buttons.PentagramRainButton = makeButton("PentagramRainButton", "PENTAGRAM RAIN: OFF", neutralBtn)
+Buttons.FOVPrisonButton = makeButton("FOVPrisonButton", "FOV PRISON: OFF", neutralBtn)
+Buttons.StarAriseButton = makeButton("StarAriseButton", "STAR ARISE", neutralBtn)
 
 
 
@@ -377,7 +379,7 @@ Buttons.PentagramRainButton = makeButton("PentagramRainButton", "PENTAGRAM RAIN:
 local tabButtonGroups = {
     Drawing = {"ActivateDrawing", "BoldDrawingButton"},
     Combat = {"FullTerrorLoopButton","HeadshotLoopButton", "ExtremeRandomLoopButton", "FullHavocButton", "ExtraTerrorButton", "ApostlesForAllButton","SmiteButton","ExtremeRandomLoopButton"},
-    Shapes = { "MultiHumanLoopButton","StarLoopButton","CircleLoopButton","VetoForAllLoopButton","StarRainButton","PentagramRainButton"},
+    Shapes = { "MultiHumanLoopButton","StarLoopButton","CircleLoopButton","VetoForAllLoopButton","StarRainButton","PentagramRainButton","StarAriseButton"},
     System = {"ActivateButton", "ExportButton", "ImportButton"}
 }
 for tab, btns in pairs(tabButtonGroups) do
@@ -1132,6 +1134,168 @@ end)
 
 
 -- Button Handlers
+
+
+DrawSettings.StarAriseLoop = DrawSettings.StarAriseLoop or false
+
+Buttons.StarAriseButton.MouseButton1Click:Connect(function()
+    if DrawSettings.StarAriseLoop then
+        -- turn off
+        DrawSettings.StarAriseLoop = false
+        Buttons.StarAriseButton.Text = "STAR ARISE: OFF"
+        Buttons.StarAriseButton.TextColor3 = neutralBtn
+        stopLoop("StarAriseLoop")
+        return
+    end
+
+    -- turn on
+    Buttons.StarAriseButton.Text = "STAR ARISE: ON"
+    Buttons.StarAriseButton.TextColor3 = Color3.fromRGB(255, 215, 0)
+    DrawSettings.StarAriseLoop = true
+
+    startLoop("StarAriseLoop", function(loop)
+        while loop.running do
+            local centerPos = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character.HumanoidRootPart.Position or Vector3.new(0, 0, 0)
+            local args = {}
+
+            -- helper to make upright pentagram
+            local function makeStar(center, size, thickness)
+                local pts = {}
+                for p = 0, 4 do
+                    local angle = math.rad(p * 72 - 90) -- upright in XY plane
+                    local x = math.cos(angle) * size
+                    local y = math.sin(angle) * size
+                    table.insert(pts, center + Vector3.new(x, y, 0))
+                end
+                local order = {1, 3, 5, 2, 4, 1}
+                for i = 1, #order - 1 do
+                    local a = pts[order[i]]
+                    local b = pts[order[i + 1]]
+                    -- bold line thickness
+                    for t = -thickness, thickness, thickness do
+                        local offset = Vector3.new(0, 0, t * 0.05)
+                        table.insert(args, {START = a + offset, END = b + offset})
+                    end
+                end
+            end
+
+            -- === Pentagrams everywhere ===
+            for i = 1, 80 do
+                local pos = centerPos + Vector3.new(math.random(-40, 40), math.random(-5, 5), math.random(-40, 40))
+                makeStar(pos, math.random(3, 7), 2)
+            end
+
+            -- === Dots everywhere ===
+            for i = 1, 300 do
+                local pos = centerPos + Vector3.new(math.random(-50, 50), math.random(-8, 8), math.random(-50, 50))
+                table.insert(args, {START = pos, END = pos + Vector3.new(0.15, 0, 0)})
+                table.insert(args, {START = pos, END = pos + Vector3.new(0, 0.15, 0)})
+            end
+
+            -- fire all at once for simultaneous pop
+            local oldBold = DrawSettings.BoldBullet
+            DrawSettings.BoldBullet = true
+            Fire_Replicated_Bullet(args, false)
+            DrawSettings.BoldBullet = oldBold
+
+            task.wait(0.5) -- pop interval
+        end
+    end)
+end)
+
+
+
+
+-- === FOV PRISON (Dense bullet-ray jail cube) ===
+DrawSettings.FOVPrisonLoop = DrawSettings.FOVPrisonLoop or false
+DrawSettings.FOVPrisonTarget = nil
+
+local fovClickConn = nil
+
+-- Local helper to get player from part
+local function getPlayerFromPart(part)
+    if not part then return nil end
+    local model = part:FindFirstAncestorOfClass("Model")
+    if model and model:FindFirstChild("Humanoid") then
+        return game:GetService("Players"):GetPlayerFromCharacter(model)
+    end
+    return nil
+end
+
+Buttons.FOVPrisonButton.MouseButton1Click:Connect(function()
+    -- Toggle OFF
+    if DrawSettings.FOVPrisonLoop then
+        DrawSettings.FOVPrisonLoop = false
+        DrawSettings.FOVPrisonTarget = nil
+        Buttons.FOVPrisonButton.Text = "FOV PRISON: OFF"
+        Buttons.FOVPrisonButton.TextColor3 = neutralBtn
+        if fovClickConn then fovClickConn:Disconnect() fovClickConn = nil end
+        stopLoop("FOVPrisonLoop")
+        return
+    end
+
+    -- Target selection mode
+    Buttons.FOVPrisonButton.Text = "CLICK TARGET..."
+    Buttons.FOVPrisonButton.TextColor3 = Color3.fromRGB(255,160,0)
+
+    local mouse = plr:GetMouse()
+    if fovClickConn then fovClickConn:Disconnect() fovClickConn = nil end
+
+    fovClickConn = mouse.Button1Down:Connect(function()
+        if DrawSettings.HoveringOverGui then return end
+        local targetPart = mouse.Target
+        local targetPlayer = getPlayerFromPart(targetPart)
+        if not targetPlayer then return end
+
+        -- Got target
+        DrawSettings.FOVPrisonTarget = targetPlayer
+        DrawSettings.FOVPrisonLoop = true
+        Buttons.FOVPrisonButton.Text = "FOV PRISON -> " .. tostring(targetPlayer.Name)
+        Buttons.FOVPrisonButton.TextColor3 = Color3.fromRGB(255,100,100)
+
+        if fovClickConn then fovClickConn:Disconnect() fovClickConn = nil end
+
+        startLoop("FOVPrisonLoop", function(loop)
+            while loop.running do
+                if not DrawSettings.FOVPrisonTarget or not DrawSettings.FOVPrisonTarget.Character then break end
+                local root = DrawSettings.FOVPrisonTarget.Character:FindFirstChild("HumanoidRootPart")
+                if not root then break end
+
+                local center = root.Position
+                local halfSize = 4 -- distance from center to each wall of jail
+                local density = 1 -- gap between bars
+
+                local args = {}
+
+                -- Create cube edges with dense vertical & horizontal bars
+                for x = -halfSize, halfSize, density do
+                    for y = -halfSize, halfSize, density do
+                        -- Front & back walls
+                        table.insert(args, {START = Vector3.new(center.X + x, center.Y + y, center.Z - halfSize), END = Vector3.new(center.X + x, center.Y + y, center.Z + halfSize)})
+                        -- Left & right walls
+                        table.insert(args, {START = Vector3.new(center.X - halfSize, center.Y + y, center.Z + x), END = Vector3.new(center.X + halfSize, center.Y + y, center.Z + x)})
+                    end
+                end
+
+                for z = -halfSize, halfSize, density do
+                    for y = -halfSize, halfSize, density do
+                        -- Top & bottom walls
+                        table.insert(args, {START = Vector3.new(center.X + z, center.Y - halfSize, center.Z + y), END = Vector3.new(center.X + z, center.Y + halfSize, center.Z + y)})
+                    end
+                end
+
+                -- Fire all as bold rays
+                local oldBold = DrawSettings.BoldBullet
+                DrawSettings.BoldBullet = true
+                Fire_Replicated_Bullet(args, false)
+                DrawSettings.BoldBullet = oldBold
+
+                task.wait(0.5)
+            end
+        end)
+    end)
+end)
+
 
 -- === PENTAGRAM RAIN FEATURE ===
 DrawSettings.PentagramRainLoop = DrawSettings.PentagramRainLoop or false
