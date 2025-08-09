@@ -1,0 +1,2169 @@
+--[[ 
+PC-Optimized, Modern Tabbed GUI for Terror+ Drawing Tool
+- Tab navigation for feature categories (Drawing, Terror+, Shapes, Fun, PvP, VETO, System)
+- Only one section of buttons visible at a time for compactness
+- Bullet log on the left, visually distinct
+- Modern, muted colors and icons
+- Settings is a floating modal
+- All logic and features (Veto for All, looping, drawing, etc) included
+--]]
+
+do
+local plr = game:GetService("Players").LocalPlayer
+
+local function getOtherPlayers(includeSelf)
+    local all = {}
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if (includeSelf or player ~= plr) and player.Character and player.Character:FindFirstChild("Head") then
+            table.insert(all, player)
+        end
+    end
+    return all
+end
+
+local Fire_Replicated_Bullet = function(Args, DoDamage)
+    local Bullets = {}
+    for _, v in pairs(Args) do
+        local dist = (v.START-v.END).magnitude
+        local s = (dist/1)
+        local vector = Vector3.new(math.random(-s,s)/10,math.random(-s,s)/10,math.random(-s,s)/10)
+        local Ray = Ray.new(v.START, ((v.END + vector)- v.START).unit*100000)
+        local position =  v.END
+        local distance = (position - v.START).magnitude
+        local rayPart = Instance.new("Part",workspace)
+        local mesh = Instance.new("BlockMesh",rayPart)
+        mesh.Scale = Vector3.new(.5,.5,1)
+        rayPart.Name = "RayPart"
+        rayPart.BrickColor = BrickColor.Yellow()
+        rayPart.Material = Enum.Material.Neon
+        rayPart.Anchored = true
+        rayPart.CanCollide = false
+        rayPart.Transparency = .2
+        rayPart.formFactor = Enum.FormFactor.Custom
+        rayPart.Size = Vector3.new(.22,.22,distance)
+        rayPart.CFrame = CFrame.new(position,v.START) * CFrame.new(0,0,-distance/2)
+        game:GetService("Debris"):AddItem(rayPart,.13)
+        local RealHit,RealPos = workspace:FindPartOnRay(Ray,plr.Character)
+        for i =1,((v.HIT and v.HIT:IsA("Player") and 9) or 1) do
+            Bullets[#Bullets + 1] = {
+                ["RayObject"] = Ray,
+                ["Distance"] = distance,
+                ["Cframe"] = rayPart.CFrame,
+                ["Hit"] = (v.HIT and v.HIT:IsA("Player") and v.HIT.Character.Head) or (DoDamage and RealHit) or workspace:FindFirstChildOfClass("Part"),
+            }
+        end
+    end
+    local Tool,Gun = ("Remington 870"),nil
+    repeat task.wait() 
+        workspace.Remote.ItemHandler:InvokeServer{ Position = plr.Character:GetPivot().p, Parent = workspace.Prison_ITEMS:FindFirstChild(Tool, true) }
+        Gun = plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool) 
+    until plr.Backpack:FindFirstChild(Tool) or plr.Character:FindFirstChild(Tool) and plr.Character:FindFirstChildOfClass("Humanoid")
+    game:GetService("ReplicatedStorage"):WaitForChild("ShootEvent"):FireServer(Bullets, Gun)
+    game:GetService("ReplicatedStorage").ReloadEvent:FireServer(Gun)
+end
+
+local DrawSettings = {
+    ActiveRender = false,
+    Drawing = false,
+    HoveringOverGui = false,
+    GlobalRenders = {},
+    P1,P2,B=nil,nil,nil,
+    DOKILL = false,
+    Selected = {},
+    BoldDrawing = false,
+    ExtremeRandom = false,
+    ExtremeRandomLoop = false,
+    ExtremeRandomOrigin = nil,
+    Headshot = false,
+    HeadshotLoop = false,
+    Star = false,
+    StarLoop = false,
+    Circle = false,
+    CircleLoop = false,
+    FullTerror = false,
+    FullTerrorLoop = false,
+    Veto = false,
+    VetoLoop = false,
+    VetoAllLoop = false,
+    __loops = {},
+        MultiHumanPlacement = false
+}
+
+local function stopLoop(name)
+    if DrawSettings.__loops[name] then
+        DrawSettings.__loops[name].running = false
+        DrawSettings.__loops[name] = nil
+    end
+end
+local function startLoop(name, fn)
+    stopLoop(name)
+    local loop = {running=true}
+    DrawSettings.__loops[name]=loop
+    task.spawn(function()
+        fn(loop)
+    end)
+end
+
+-- UI Setup (REPLACE THIS BLOCK ENTIRELY)
+local DRAWING_TOOL = Instance.new("ScreenGui")
+DRAWING_TOOL.Name = "DRAWING_TOOL"
+DRAWING_TOOL.Parent = (game:GetService("CoreGui") or gethui and gethui())
+DRAWING_TOOL.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- F2 toggles the GUI visibility
+local isGuiVisible = true
+game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.F2 then
+        isGuiVisible = not isGuiVisible
+        DRAWING_TOOL.Enabled = isGuiVisible
+    end
+end)
+
+local MAINDRAW = Instance.new("Frame")
+MAINDRAW.Name = "MAINDRAW"
+MAINDRAW.Parent = DRAWING_TOOL
+MAINDRAW.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MAINDRAW.Position = UDim2.new(0.22,0,0.14,0)
+MAINDRAW.Size = UDim2.new(0.44, 0, 0.62, 0)
+MAINDRAW.BorderSizePixel = 0
+local UICorner = Instance.new("UICorner", MAINDRAW)
+UICorner.CornerRadius = UDim.new(0, 13)
+local UIStroke = Instance.new("UIStroke", MAINDRAW)
+MAINDRAW.BackgroundTransparency = 0.1
+UIStroke.Thickness = 2.2
+UIStroke.Transparency = 0.18
+UIStroke.Color = Color3.fromRGB(180, 180, 180)
+
+
+-- Title Bar (compact, centered title, no emojis)
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MAINDRAW
+TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TitleBar.BackgroundTransparency = 0
+TitleBar.Size = UDim2.new(1,0,0.07,0)
+TitleBar.Position = UDim2.new(0,0,0,0)
+TitleBar.BorderSizePixel = 0
+local UICornerTB = Instance.new("UICorner", TitleBar)
+UICornerTB.CornerRadius = UDim.new(0, 13)
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = TitleBar
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+TitleLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+TitleLabel.Size = UDim2.new(0.9, 0, 0.9, 0)
+TitleLabel.Font = Enum.Font.GothamBlack
+TitleLabel.Text = "Drawtool V1"
+TitleLabel.TextColor3 = Color3.fromRGB(225, 225, 255)
+TitleLabel.TextStrokeTransparency = 0.73
+TitleLabel.TextScaled = true
+TitleLabel.TextWrapped = true
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+TitleLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+local SettingsButton = Instance.new("ImageButton")
+SettingsButton.Name = "SettingsButton"
+SettingsButton.Parent = TitleBar
+SettingsButton.BackgroundTransparency = 1.0
+SettingsButton.Position = UDim2.new(0.96, -24, 0.5, -12)
+SettingsButton.Size = UDim2.new(0, 24, 0, 24)
+SettingsButton.Image = "rbxassetid://1203479768"
+SettingsButton.ImageColor3 = Color3.fromRGB(170, 180, 240)
+
+-- Bullet Log Sidebar (unchanged layout but muted)
+local BulletLogFrame = Instance.new("Frame")
+BulletLogFrame.Name = "BulletLogFrame"
+BulletLogFrame.Parent = MAINDRAW
+BulletLogFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+BulletLogFrame.BackgroundTransparency = 0.07
+BulletLogFrame.Position = UDim2.new(0.014, 0, 0.1, 0)
+BulletLogFrame.Size = UDim2.new(0.22, 0, 0.88, 0)
+BulletLogFrame.BorderSizePixel = 0
+local UIC_Bullet = Instance.new("UICorner", BulletLogFrame)
+UIC_Bullet.CornerRadius = UDim.new(0, 7)
+local UIStroke_Bullet = Instance.new("UIStroke", BulletLogFrame)
+UIStroke_Bullet.Color = Color3.fromRGB(150, 150, 150)
+UIStroke_Bullet.Thickness = 1.2
+UIStroke_Bullet.Transparency = 0.25
+
+local BulletLogLabel = Instance.new("TextLabel")
+BulletLogLabel.Name = "BulletLogLabel"
+BulletLogLabel.Parent = BulletLogFrame
+BulletLogLabel.BackgroundTransparency = 1
+BulletLogLabel.Position = UDim2.new(0.09, 0, 0.01, 0)
+BulletLogLabel.Size = UDim2.new(0.9, 0, 0.04, 0)
+BulletLogLabel.Font = Enum.Font.GothamBold
+BulletLogLabel.Text = "BULLETS"
+BulletLogLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+BulletLogLabel.TextScaled = true
+BulletLogLabel.TextSize = 13
+BulletLogLabel.TextWrapped = true
+BulletLogLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local BulletsLogs = Instance.new("ScrollingFrame")
+BulletsLogs.Name = "BulletsLogs"
+BulletsLogs.Parent = BulletLogFrame
+BulletsLogs.Active = true
+BulletsLogs.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+BulletsLogs.BackgroundTransparency = 0.73
+BulletsLogs.BorderSizePixel = 0
+BulletsLogs.Position = UDim2.new(0.065, 0, 0.06, 0)
+BulletsLogs.Size = UDim2.new(0.92, 0, 0.92, 0)
+BulletsLogs.CanvasSize = UDim2.new(0, 0, 2, 0)
+BulletsLogs.ScrollBarThickness = 7
+BulletsLogs.ZIndex = 10
+local UIListLayoutB = Instance.new("UIListLayout", BulletsLogs)
+UIListLayoutB.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayoutB.Padding = UDim.new(0, 3)
+
+local tempdraw = Instance.new("TextButton")
+tempdraw.Name = "tempdraw"
+tempdraw.Parent = DRAWING_TOOL
+tempdraw.BackgroundColor3 = Color3.fromRGB(240, 240, 255)
+tempdraw.BackgroundTransparency = 0.91
+tempdraw.BorderSizePixel = 0
+tempdraw.Size = UDim2.new(1, 0, 0.009, 0)
+tempdraw.Visible = false
+tempdraw.Font = Enum.Font.GothamSemibold
+tempdraw.Text = "BULLET #1"
+tempdraw.TextColor3 = Color3.fromRGB(80, 80, 120)
+tempdraw.TextSize = 14
+tempdraw.TextScaled = true
+tempdraw.TextWrapped = true
+tempdraw.TextXAlignment = Enum.TextXAlignment.Left
+local UIStroke_6 = Instance.new("UIStroke", tempdraw)
+UIStroke_6.Transparency = 0.62
+local UIStroke_7 = Instance.new("UIStroke", tempdraw)
+UIStroke_7.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStroke_7.Color = Color3.fromRGB(190, 190, 220)
+UIStroke_7.Transparency = 0.62
+local closedraw = Instance.new("ImageButton")
+closedraw.Name = "closedraw"
+closedraw.Parent = tempdraw
+closedraw.BackgroundTransparency = 1.0
+closedraw.Position = UDim2.new(0.84, 0, 0.18, 0)
+closedraw.Size = UDim2.new(0.15, 0, 0.65, 0)
+closedraw.Image = "rbxassetid://16888018114"
+closedraw.ImageColor3 = Color3.fromRGB(200, 90, 90)
+
+-- Main Panel and Tabs
+local MainPanel = Instance.new("Frame")
+MainPanel.Name = "MainPanel"
+MainPanel.Parent = MAINDRAW
+MainPanel.BackgroundTransparency = 1
+MainPanel.Position = UDim2.new(0.25, 0, 0.1, 0)
+MainPanel.Size = UDim2.new(0.73, 0, 0.88, 0)
+MainPanel.BorderSizePixel = 0
+
+local TabBar = Instance.new("Frame")
+TabBar.Name = "TabBar"
+TabBar.Parent = MainPanel
+TabBar.BackgroundTransparency = 1
+TabBar.Position = UDim2.new(0,0,0,0)
+TabBar.Size = UDim2.new(1,0,0.09,0)
+local TabList = Instance.new("UIListLayout", TabBar)
+TabList.FillDirection = Enum.FillDirection.Horizontal
+TabList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+TabList.SortOrder = Enum.SortOrder.LayoutOrder
+TabList.Padding = UDim.new(0, 6)
+
+-- Use only 4 clean tabs; icons intentionally empty
+local tabNames = {"Drawing","Combat","Shapes","System"}
+local tabIcons = { Drawing = "", Combat = "", Shapes = "", System = "" }
+local TabButtons = {}
+local tabFrames = {}
+for i, tab in ipairs(tabNames) do
+    local btn = Instance.new("TextButton")
+    btn.Name = tab .. "Tab"
+    btn.Parent = TabBar
+    -- wider to fit 4 tabs nicely
+    btn.Size = UDim2.new(0.22,0,1,0)
+    btn.BackgroundColor3 = Color3.fromRGB(39,39,55)
+    btn.BackgroundTransparency = 0.12
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = tabIcons[tab] .. " " .. tab
+    btn.TextColor3 = Color3.fromRGB(210,210,255)
+    btn.TextSize = 18
+    btn.TextScaled = true
+    btn.AutoButtonColor = true
+    btn.LayoutOrder = i
+    local UIC = Instance.new("UICorner",btn)
+    UIC.CornerRadius = UDim.new(0, 4)
+    TabButtons[tab] = btn
+
+    local secFrame = Instance.new("Frame")
+    secFrame.Name = tab.."Section"
+    secFrame.Parent = MainPanel
+    secFrame.Position = UDim2.new(0,0,0.12,0)
+    secFrame.Size = UDim2.new(1,0,0.88,0)
+    secFrame.BackgroundTransparency = 1
+    secFrame.Visible = false
+    tabFrames[tab] = secFrame
+end
+
+-- Keep original sectionColors (so existing makeButton/Buttons calls referencing these keys keep working)
+local sectionColors = {
+    Drawing = Color3.fromRGB(50, 50, 50),
+    TerrorPlus = Color3.fromRGB(60, 60, 60),
+    Shapes = Color3.fromRGB(70, 70, 70),
+    Fun = Color3.fromRGB(80, 80, 80),
+    PvP = Color3.fromRGB(90, 90, 90),
+    VETO = Color3.fromRGB(100, 100, 100),
+    System = Color3.fromRGB(110, 110, 110),
+}
+
+-- smaller, consistent buttons
+local function makeButton(name, text, color)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.BackgroundColor3 = color or Color3.fromRGB(35, 35, 35)
+    btn.BackgroundTransparency = 0.14
+    btn.BorderSizePixel = 0
+    btn.Size = UDim2.new(1, 0, 0, 24)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+    btn.TextStrokeTransparency = 0.83
+    btn.TextScaled = true
+    btn.TextSize = 14
+    btn.TextWrapped = true
+    btn.AutoButtonColor = true
+    local UIC = Instance.new("UICorner",btn)
+    UIC.CornerRadius = UDim.new(0, 5)
+    return btn
+end
+
+local neutralBtn = Color3.fromRGB(40, 40, 40)
+
+
+-- (Recreate all buttons using the same names so existing handlers remain valid)
+local Buttons = {}
+Buttons.ActivateButton = makeButton("ActivateButton", "START RENDER", neutralBtn)
+Buttons.ActivateDrawing = makeButton("ActivateDrawing", "START DRAWING", neutralBtn)
+Buttons.BoldDrawingButton = makeButton("BoldDrawingButton", "BOLD DRAWING: OFF", neutralBtn)
+Buttons.StarButton = makeButton("StarButton", "DRAW STAR", neutralBtn)
+Buttons.StarLoopButton = makeButton("StarLoopButton", "STAR LOOP: OFF", neutralBtn)
+Buttons.CircleButton = makeButton("CircleButton", "DRAW CIRCLE", neutralBtn)
+Buttons.CircleLoopButton = makeButton("CircleLoopButton", "CIRCLE LOOP: OFF", neutralBtn)
+Buttons.ExtremeRandomButton = makeButton("ExtremeRandomButton", "EXTREME RANDOM: OFF", neutralBtn)
+Buttons.ExtremeRandomLoopButton = makeButton("ExtremeRandomLoopButton", "EXT. RANDOM LOOP: OFF", neutralBtn)
+Buttons.HeadshotButton = makeButton("HeadshotButton", "HEADSHOT ALL: OFF", neutralBtn)
+Buttons.HeadshotLoopButton = makeButton("HeadshotLoopButton", "HEADSHOT LOOP: OFF", neutralBtn)
+Buttons.FullTerrorButton = makeButton("FullTerrorButton", "TERROR+ : OFF", neutralBtn)
+Buttons.FullTerrorLoopButton = makeButton("FullTerrorLoopButton", "TERROR+ LOOP: OFF", neutralBtn)
+Buttons.VetoButton = makeButton("VetoButton", "POP VETO", neutralBtn)
+Buttons.VetoLoopButton = makeButton("VetoLoopButton", "VETO LOOP: OFF", neutralBtn)
+Buttons.VetoForAllButton = makeButton("VetoForAllButton", "VETO FOR ALL", neutralBtn)
+Buttons.VetoForAllLoopButton = makeButton("VetoForAllLoopButton", "VETO FOR ALL LOOP: OFF", neutralBtn)
+Buttons.ExportButton = makeButton("ExportButton", "EXPORT DRAWINGS", neutralBtn)
+Buttons.ImportButton = makeButton("ImportButton", "IMPORT DRAWINGS", neutralBtn)
+Buttons.FullHavocButton = makeButton("FullHavocButton", "FULL HAVOC: OFF", neutralBtn)
+Buttons.ExtraTerrorButton = makeButton("ExtraTerrorButton", "EXTRA TERROR: OFF", neutralBtn)
+Buttons.ApostlesForAllButton = makeButton("ApostlesForAllButton", "APOSTLES FOR ALL: OFF", neutralBtn)
+Buttons.HumanLoopButton = makeButton("HumanLoopButton", "HUMAN LOOP: OFF", neutralBtn)
+Buttons.MultiHumanLoopButton = makeButton("MultiHumanLoopButton", "MULTI HUMAN LOOP: OFF", neutralBtn)
+Buttons.RaveButton = makeButton("RaveButton", "RAVE: OFF", neutralBtn)
+Buttons.BlindButton = makeButton("BlindButton", "BLIND: OFF", neutralBtn)
+Buttons.SmiteButton = makeButton("SmiteButton", "SMITE: OFF", neutralBtn)
+Buttons.FlingRayButton = makeButton("FlingRayButton", "FLING RAY: OFF", neutralBtn)
+Buttons.StarRainButton = makeButton("StarRainButton", "STAR RAIN: OFF", neutralBtn)
+Buttons.PentagramRainButton = makeButton("PentagramRainButton", "PENTAGRAM RAIN: OFF", neutralBtn)
+
+
+
+-- Distribute buttons into 4 clean tabs (no duplicates)
+local tabButtonGroups = {
+    Drawing = {"ActivateDrawing", "BoldDrawingButton"},
+    Combat = {"FullTerrorLoopButton","HeadshotLoopButton", "ExtremeRandomLoopButton", "FullHavocButton", "ExtraTerrorButton", "ApostlesForAllButton","SmiteButton","ExtremeRandomLoopButton"},
+    Shapes = { "MultiHumanLoopButton","StarLoopButton","CircleLoopButton","VetoForAllLoopButton","StarRainButton","PentagramRainButton"},
+    System = {"ActivateButton", "ExportButton", "ImportButton"}
+}
+for tab, btns in pairs(tabButtonGroups) do
+    local secFrame = tabFrames[tab]
+    if secFrame then
+        local lay = Instance.new("UIListLayout",secFrame)
+        lay.SortOrder = Enum.SortOrder.LayoutOrder
+        lay.Padding = UDim.new(0,8)
+        for _,bname in ipairs(btns) do
+            local btn = Buttons[bname]
+            if btn then
+                btn.Parent = secFrame
+            end
+        end
+    end
+end
+
+local function showTab(tab)
+    for t,frame in pairs(tabFrames) do
+        frame.Visible = false
+    end
+    for t,btn in pairs(TabButtons) do
+        if t==tab then
+            btn.BackgroundColor3 = Color3.fromRGB(59, 59, 105)
+            btn.TextColor3 = Color3.fromRGB(250,230,80)
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(39,39,55)
+            btn.TextColor3 = Color3.fromRGB(210,210,255)
+        end
+    end
+    if tabFrames[tab] then
+        tabFrames[tab].Visible = true
+    end
+end
+for tab,btn in pairs(TabButtons) do
+    btn.MouseButton1Click:Connect(function() showTab(tab) end)
+end
+showTab("Drawing")
+
+-- Settings Modal toggle remains unchanged (existing code expects SettingsButton)
+SettingsButton.MouseButton1Click:Connect(function()
+    SETTINGS.Visible = not SETTINGS.Visible
+end)
+
+task.spawn(function()
+    local t = 0
+    while SettingsButton and SettingsButton.Parent do
+        local r = math.sin(t) * 127 + 128
+        local g = math.sin(t + 2) * 127 + 128
+        local b = math.sin(t + 4) * 127 + 128
+        SettingsButton.ImageColor3 = Color3.fromRGB(r, g, b)
+        t = t + math.pi / 60 -- smooth, ~1 second cycle
+        task.wait(0.016) -- 60 FPS
+    end
+end)
+
+-- END UI Setup (REPLACED)
+
+-- Settings Modal
+local SETTINGS = Instance.new("Frame")
+SETTINGS.Name = "SETTINGS"
+SETTINGS.Parent = DRAWING_TOOL
+SETTINGS.BackgroundColor3 = Color3.fromRGB(36, 36, 44)
+SETTINGS.BackgroundTransparency = 0.10
+SETTINGS.BorderSizePixel = 0
+SETTINGS.Position = UDim2.new(0.32, 0, 0.2, 0)
+SETTINGS.Size = UDim2.new(0.18, 0, 0.23, 0)
+SETTINGS.Visible = false
+SETTINGS.ZIndex = 100
+local UIStroke_5 = Instance.new("UIStroke", SETTINGS)
+UIStroke_5.Color = Color3.fromRGB(140, 180, 255)
+UIStroke_5.Transparency = 0.12
+local UICorner_4 = Instance.new("UICorner", SETTINGS)
+UICorner_4.CornerRadius = UDim.new(0, 7)
+local REFRESHRATE = Instance.new("TextBox")
+REFRESHRATE.Name = "REFRESHRATE"
+REFRESHRATE.Parent = SETTINGS
+REFRESHRATE.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+REFRESHRATE.BackgroundTransparency = 0.94
+REFRESHRATE.BorderSizePixel = 0
+REFRESHRATE.Position = UDim2.new(0.07, 0, 0.19, 0)
+REFRESHRATE.Size = UDim2.new(0.87, 0, 0.22, 0)
+REFRESHRATE.ClearTextOnFocus = false
+REFRESHRATE.Font = Enum.Font.Gotham
+REFRESHRATE.PlaceholderText = "REFRESH RATE"
+REFRESHRATE.Text = "0.7"
+REFRESHRATE.TextColor3 = Color3.fromRGB(21, 255, 56)
+REFRESHRATE.TextSize = 13
+local TextLabel_2 = Instance.new("TextLabel")
+TextLabel_2.Parent = REFRESHRATE
+TextLabel_2.BackgroundTransparency = 1
+TextLabel_2.Position = UDim2.new(0.19, 0, -0.85, 0)
+TextLabel_2.Size = UDim2.new(0, 97, 0, 17)
+TextLabel_2.Font = Enum.Font.Gotham
+TextLabel_2.Text = "REFRESH RATE"
+TextLabel_2.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel_2.TextSize = 13
+local DODAMAGE = Instance.new("TextButton")
+DODAMAGE.Name = "DODAMAGE"
+DODAMAGE.Parent = SETTINGS
+DODAMAGE.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+DODAMAGE.BackgroundTransparency = 0.94
+DODAMAGE.BorderSizePixel = 0
+DODAMAGE.Position = UDim2.new(0.07, 0, 0.56, 0)
+DODAMAGE.Size = UDim2.new(0.87, 0, 0.22, 0)
+DODAMAGE.Font = Enum.Font.Gotham
+DODAMAGE.Text = "DO KILL"
+DODAMAGE.TextColor3 = Color3.fromRGB(255, 75, 78)
+DODAMAGE.TextSize = 13
+local TextLabel_3 = Instance.new("TextLabel")
+TextLabel_3.Parent = DODAMAGE
+TextLabel_3.BackgroundTransparency = 1
+TextLabel_3.Position = UDim2.new(0.037, 0, -0.82, 0)
+TextLabel_3.Size = UDim2.new(0.93, 0, 0.82, 0)
+TextLabel_3.Font = Enum.Font.Gotham
+TextLabel_3.Text = "DAMAGE WHEN TOUCHED"
+TextLabel_3.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextLabel_3.TextScaled = true
+TextLabel_3.TextSize = 13
+TextLabel_3.TextWrapped = true
+SettingsButton.MouseButton1Click:Connect(function()
+    SETTINGS.Visible = not SETTINGS.Visible
+end)
+REFRESHRATE.FocusLost:Connect(function()
+    if not tonumber(REFRESHRATE.Text) or (tonumber(REFRESHRATE.Text) and tonumber(REFRESHRATE.Text))<.2 then
+        REFRESHRATE.Text = "0.7"
+    end
+end)
+DODAMAGE.MouseButton1Click:Connect(function()
+    DrawSettings.DOKILL = not DrawSettings.DOKILL
+    DODAMAGE.TextColor3 = DrawSettings.DOKILL and Color3.fromRGB(73, 255, 125) or Color3.fromRGB(255, 75, 78)
+end)
+
+-- ===== DRAW FUNCTIONS & HANDLERS =====
+
+local VETO_LETTERS = {
+    V = {
+        {Vector3.new(0,1.6,0), Vector3.new(0.5,0,0)},
+        {Vector3.new(1,1.6,0), Vector3.new(0.5,0,0)},
+    },
+    E = {
+        {Vector3.new(0,0,0), Vector3.new(0,1.6,0)},
+        {Vector3.new(0,1.6,0), Vector3.new(1,1.6,0)},
+        {Vector3.new(0,0.8,0), Vector3.new(0.7,0.8,0)},
+        {Vector3.new(0,0,0), Vector3.new(1,0,0)},
+    },
+    T = {
+        {Vector3.new(0,1.6,0), Vector3.new(1,1.6,0)},
+        {Vector3.new(0.5,1.6,0), Vector3.new(0.5,0,0)},
+    },
+    O = (function()
+        local circle = {}
+        local n = 18
+        local r = 0.78
+        local cx, cy = 0.5, 0.8
+        for i=1,n do
+            local a1 = math.rad((i-1)*360/n)
+            local a2 = math.rad((i% n)*360/n)
+            local p1 = Vector3.new(cx + math.cos(a1)*r, cy + math.sin(a1)*r, 0)
+            local p2 = Vector3.new(cx + math.cos(a2)*r, cy + math.sin(a2)*r, 0)
+            table.insert(circle, {p1, p2})
+        end
+        return circle
+    end)(),
+}
+
+local function drawVetoWord(headPosition, facingCF)
+    local args = {}
+    local scale = 0.47
+    local letter_gap = 0.32
+    local total_letters = 4
+    local word_width = ((total_letters-1) * (1+letter_gap) + 1) * scale
+    local local_offset = Vector3.new(-word_width/2, 1.01, 0)
+    local facing = facingCF or CFrame.new()
+    for i,letter in ipairs({'V','E','T','O'}) do
+        local ldef = VETO_LETTERS[letter]
+        local xShift = (i-1)*(1+letter_gap)*scale
+        for _,seg in ipairs(ldef) do
+            local p1 = (Vector3.new(xShift + seg[1].X*scale, seg[1].Y*scale, 0) + local_offset)
+            local p2 = (Vector3.new(xShift + seg[2].X*scale, seg[2].Y*scale, 0) + local_offset)
+            local p1w = (facing * p1) + headPosition
+            local p2w = (facing * p2) + headPosition
+            table.insert(args, {START=p1w, END=p2w})
+        end
+    end
+    Fire_Replicated_Bullet(args, false)
+end
+
+
+-- ===== Dominant Pose Human Shape (Massive) =====
+-- ===== Dominant Pose Human with Bold Lines, Sharper Sword, and Chest Star =====
+local DOMINANT_HUMAN = {
+    -- Legs (wide stance)
+    {Vector3.new(-4, 0, 0), Vector3.new(-2, 10, 0)}, -- left leg
+    {Vector3.new(4, 0, 0), Vector3.new(2, 10, 0)},   -- right leg
+
+    -- Hips and torso (slight lean back)
+    {Vector3.new(-2, 10, 0), Vector3.new(2, 10, 0)},  -- hips
+    {Vector3.new(0, 10, 0), Vector3.new(0, 26, -1)},  -- spine
+
+    -- Broad shoulders
+    {Vector3.new(-6, 26, -1), Vector3.new(6, 26, -1)},
+
+    -- Left arm down
+    {Vector3.new(-6, 26, -1), Vector3.new(-10, 15, -1)},
+
+    -- Right arm holding sword
+    {Vector3.new(6, 26, -1), Vector3.new(8, 40, -1)},  -- forearm
+    {Vector3.new(8, 40, -1), Vector3.new(8, 75, -1)},  -- sword blade
+    {Vector3.new(8, 75, -1), Vector3.new(7, 78, -1)},  -- tip left
+    {Vector3.new(8, 75, -1), Vector3.new(9, 78, -1)},  -- tip right
+    {Vector3.new(7, 78, -1), Vector3.new(9, 78, -1)},  -- tip join
+    {Vector3.new(7, 40, -1), Vector3.new(9, 40, -1)},  -- crossguard
+
+    -- Head (big square outline)
+     {Vector3.new(-3, 28, 0), Vector3.new(3, 28, 0)},
+    {Vector3.new(3, 28, 0), Vector3.new(3, 34, 0)},
+    {Vector3.new(3, 34, 0), Vector3.new(-3, 34, 0)},
+    {Vector3.new(-3, 34, 0), Vector3.new(-3, 28, 0)},
+
+    -- Star on torso (five points)
+    {Vector3.new(0, 20, 0), Vector3.new(1, 22, 0)},
+    {Vector3.new(1, 22, 0), Vector3.new(3, 22, 0)},
+    {Vector3.new(3, 22, 0), Vector3.new(1.5, 23.5, 0)},
+    {Vector3.new(1.5, 23.5, 0), Vector3.new(2.2, 26, 0)},
+    {Vector3.new(2.2, 26, 0), Vector3.new(0, 24.5, 0)},
+    {Vector3.new(0, 24.5, 0), Vector3.new(-2.2, 26, 0)},
+    {Vector3.new(-2.2, 26, 0), Vector3.new(-1.5, 23.5, 0)},
+    {Vector3.new(-1.5, 23.5, 0), Vector3.new(-3, 22, 0)},
+    {Vector3.new(-3, 22, 0), Vector3.new(-1, 22, 0)},
+    {Vector3.new(-1, 22, 0), Vector3.new(0, 20, 0)},
+}
+
+
+local function CreateHumanArgs(position, scale)
+    local args = {}
+    scale = scale or 12 -- massive figure
+    local thickness = 3 -- how bold each line is (in studs)
+    local offsets = {-thickness, 0, thickness}
+
+    for _, seg in ipairs(DOMINANT_HUMAN) do
+        local startBase = position + (seg[1] * scale)
+        local endBase = position + (seg[2] * scale)
+        local dir = (endBase - startBase)
+        local perp = dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit -- perpendicular vector
+
+        for _, off in ipairs(offsets) do
+            table.insert(args, {
+                START = startBase + perp * off,
+                END = endBase + perp * off
+            })
+        end
+    end
+    return args
+end
+
+
+local APOSTLES_LETTERS = {
+    A = {
+        {Vector3.new(0,0,0), Vector3.new(0.5,1.6,0)},
+        {Vector3.new(1,0,0), Vector3.new(0.5,1.6,0)},
+        {Vector3.new(0.25,0.8,0), Vector3.new(0.75,0.8,0)},
+    },
+    P = {
+        {Vector3.new(0,0,0), Vector3.new(0,1.6,0)},
+        {Vector3.new(0,1.6,0), Vector3.new(0.75,1.6,0)},
+        {Vector3.new(0.75,1.6,0), Vector3.new(0.75,0.9,0)},
+        {Vector3.new(0.75,0.9,0), Vector3.new(0,0.9,0)},
+    },
+    S = {
+          -- top curve
+    {Vector3.new(0.8,1.6,0), Vector3.new(0.2,1.6,0)},
+    {Vector3.new(0.2,1.6,0), Vector3.new(0.0,1.4,0)},
+    {Vector3.new(0.0,1.4,0), Vector3.new(0.2,1.2,0)},
+    {Vector3.new(0.2,1.2,0), Vector3.new(0.8,1.0,0)},
+
+    -- middle connector
+    {Vector3.new(0.8,1.0,0), Vector3.new(0.2,0.8,0)},
+
+    -- bottom curve
+    {Vector3.new(0.2,0.8,0), Vector3.new(0.0,0.6,0)},
+    {Vector3.new(0.0,0.6,0), Vector3.new(0.2,0.4,0)},
+    {Vector3.new(0.2,0.4,0), Vector3.new(0.8,0.0,0)},
+    {Vector3.new(0.8,0.0,0), Vector3.new(0.2,0.0,0)},
+    },
+    T = {
+        {Vector3.new(0,1.6,0), Vector3.new(1,1.6,0)},
+        {Vector3.new(0.5,1.6,0), Vector3.new(0.5,0,0)},
+    },
+    L = {
+        {Vector3.new(0,1.6,0), Vector3.new(0,0,0)},
+        {Vector3.new(0,0,0), Vector3.new(1,0,0)},
+    },
+    -- E and O exist in VETO_LETTERS already (we'll reuse them)
+}
+
+-- CreateTextArgs(word, headPosition, facingCF, scale)
+-- returns an array of {START=vec3, END=vec3} segments for Fire_Replicated_Bullet
+local function CreateTextArgs(word, headPosition, facingCF, scale)
+    local args = {}
+    scale = scale or 0.47
+    local letter_gap = 0.28
+    local letters = {}
+    word = tostring(word):upper()
+    for i = 1, #word do
+        letters[i] = word:sub(i,i)
+    end
+    local total_letters = #letters
+    if total_letters == 0 then return args end
+
+    local word_width = ((total_letters - 1) * (1 + letter_gap) + 1) * scale
+    local local_offset = Vector3.new(-word_width/2, 1.05, 0)
+    local facing = facingCF or CFrame.new()
+
+    for i, ch in ipairs(letters) do
+        local xShift = (i-1) * (1 + letter_gap) * scale
+        -- prefer APOSTLES_LETTERS, fall back to VETO_LETTERS if available (E, O, etc.)
+        local def = APOSTLES_LETTERS[ch] or VETO_LETTERS[ch]
+        if def then
+            for _, seg in ipairs(def) do
+                local p1 = (Vector3.new(xShift + seg[1].X * scale, seg[1].Y * scale, 0) + local_offset)
+                local p2 = (Vector3.new(xShift + seg[2].X * scale, seg[2].Y * scale, 0) + local_offset)
+                local p1w = (facing * p1) + headPosition
+                local p2w = (facing * p2) + headPosition
+                table.insert(args, {START = p1w, END = p2w})
+            end
+        end
+    end
+
+    return args
+end
+
+
+
+
+local function drawStar(center, bold)
+    local args = {}
+    local radius = 18
+    local starPoints = 5
+    local pts = {}
+    for i=1,starPoints do
+        local angle = math.rad(72*(i-1) - 90)
+        pts[i] = center + Vector3.new(math.cos(angle)*radius,0,math.sin(angle)*radius)
+    end
+    for i=1,starPoints do
+        local from = pts[i]
+        local to = pts[((i+2-1)%starPoints)+1]
+        if bold then
+            local dir = (to-from)
+            local perp
+            if math.abs(dir.Unit.Y) < 0.99 then
+                perp = dir.Unit:Cross(Vector3.new(0,1,0)).Unit
+            else
+                perp = dir.Unit:Cross(Vector3.new(1,0,0)).Unit
+            end
+            local thickness = 2.5
+            local count = 25
+            for j=1,count do
+                local offset = (((j-1)/(count-1))-0.5) * thickness
+                local startOffset = from + perp * offset
+                local endOffset = to + perp * offset
+                table.insert(args, {START=startOffset,END=endOffset})
+            end
+        else
+            table.insert(args, {START=from,END=to})
+        end
+    end
+    Fire_Replicated_Bullet(args, false)
+end
+
+local function drawCircle(center)
+    local args = {}
+    local radius = 15
+    local n = 32
+    for i=1,n do
+        local angle1 = math.rad((i-1)*360/n)
+        local angle2 = math.rad((i% n)*360/n)
+        local from = center + Vector3.new(math.cos(angle1)*radius,0,math.sin(angle1)*radius)
+        local to = center + Vector3.new(math.cos(angle2)*radius,0,math.sin(angle2)*radius)
+        table.insert(args,{START=from,END=to})
+    end
+    Fire_Replicated_Bullet(args, false)
+end
+
+local function drawFullTerror()
+    local char = plr.Character
+    local head = char and char:FindFirstChild("Head")
+    local root = char and char.PrimaryPart or head
+    if not root then return end
+    local origin = root.Position
+    local fwd = char.PrimaryPart and char.PrimaryPart.CFrame.LookVector or Vector3.new(0,0,1)
+    local right = char.PrimaryPart and char.PrimaryPart.CFrame.RightVector or Vector3.new(1,0,0)
+    local baseY = (head and head.Position.Y or origin.Y) + 12
+    local heights = {0, 6, 12, 18}
+    local directions = {fwd, -fwd, right, -right}
+    coroutine.wrap(function()
+        while true do
+            for i = 1, 50 do
+                local dist = i * 4
+                for _, yOffset in ipairs(heights) do
+                    for _, dir in ipairs(directions) do
+                        drawStar(Vector3.new(origin.X, baseY + yOffset, origin.Z) + dir * dist, false)
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end)()
+end
+
+local function drawVetoForAll()
+    for _, player in ipairs(getOtherPlayers(true)) do
+        local head = player.Character and player.Character:FindFirstChild("Head")
+        local root = player.Character and player.Character.PrimaryPart
+        if head and root then
+            local look = root.CFrame.LookVector
+            local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+            local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+            drawVetoWord(head.Position, facingCF)
+        end
+    end
+end
+
+local function AddBulletToTable(Start,End,Bullet)
+    local TempButton = tempdraw:Clone()
+    local i = #DrawSettings.GlobalRenders+1
+    TempButton.Text = "Bullet #"..tostring(i)
+    TempButton.Parent = BulletsLogs
+    TempButton.Visible = true
+    TempButton.closedraw.MouseButton1Click:Connect(function()
+        DrawSettings.GlobalRenders[i].BULLET_INSTANCE:Destroy()
+        DrawSettings.GlobalRenders[i]=nil
+        TempButton:Destroy()
+    end)
+    local sel = false
+    TempButton.MouseButton1Click:Connect(function()
+        sel=not sel
+        if sel then
+            Bullet.Transparency = .1
+            Bullet.Color = Color3.new(0.12549, 1, 0.12549)
+            TempButton.BackgroundTransparency = .5
+            DrawSettings.Selected.Part = Bullet
+            DrawSettings.Selected.i = i
+        else
+            Bullet.Transparency = .93
+            DrawSettings.Selected.Part = nil
+            DrawSettings.Selected.i = nil
+            DrawSettings.Transparency = 0.950
+            Bullet.BrickColor = BrickColor.Yellow()
+            TempButton.BackgroundTransparency = 0.950
+        end
+    end)
+    DrawSettings.GlobalRenders[i]={
+        ["START"] = Start,
+        ["END"] = End,
+        ["BULLET_INSTANCE"] = Bullet
+    }
+end
+
+
+
+local HttpService = game:GetService("HttpService")
+
+local function vec3_to_table(v)
+    if typeof(v) == "Vector3" then
+        return {x = v.X, y = v.Y, z = v.Z}
+    end
+    return nil
+end
+
+local function table_to_vec3(t)
+    if type(t) == "table" and t.x and t.y and t.z then
+        return Vector3.new(t.x, t.y, t.z)
+    end
+    return nil
+end
+
+Buttons.ExportButton.MouseButton1Click:Connect(function()
+    local data = {}
+    for _, b in ipairs(DrawSettings.GlobalRenders) do
+        if b and b.START and b.END then
+            table.insert(data, {
+                START = vec3_to_table(b.START),
+                END   = vec3_to_table(b.END)
+            })
+        end
+    end
+
+    local encoded = HttpService:JSONEncode(data)
+    -- wrap setclipboard in pcall (may not be allowed in all environments)
+    pcall(function() setclipboard(encoded) end)
+
+    Buttons.ExportButton.Text = "COPIED TO CLIPBOARD!"
+    task.delay(2, function()
+        Buttons.ExportButton.Text = "EXPORT DRAWINGS"
+    end)
+end)
+
+
+Buttons.ImportButton.MouseButton1Click:Connect(function()
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size = UDim2.new(1, 0, 0, 36)
+    inputBox.PlaceholderText = "Paste export code here"
+    inputBox.Parent = tabFrames.System
+    inputBox.Text = ""
+    inputBox.ClearTextOnFocus = false
+
+    inputBox.FocusLost:Connect(function(enterPressed)
+        local code = inputBox.Text
+        -- decode safely
+        local ok, decoded = pcall(function() return HttpService:JSONDecode(code) end)
+        if not ok or type(decoded) ~= "table" then
+            warn("Import failed: invalid JSON")
+            inputBox:Destroy()
+            return
+        end
+
+        for _, v in ipairs(decoded) do
+            local startV = table_to_vec3(v.START)
+            local endV   = table_to_vec3(v.END)
+            if startV and endV then
+                local bullet = Instance.new("Part", workspace)
+                local mesh = Instance.new("BlockMesh", bullet)
+                mesh.Scale = Vector3.new(.5, .5, 1)
+                bullet.Name = "RayPart"
+                bullet.BrickColor = BrickColor.Yellow()
+                bullet.Material = Enum.Material.Neon
+                bullet.Anchored = true
+                bullet.CanCollide = false
+                bullet.Transparency = .5
+                bullet.formFactor = Enum.FormFactor.Custom
+                local distance = (endV - startV).Magnitude
+                bullet.Size = Vector3.new(.2, .2, distance)
+                bullet.CFrame = CFrame.new(endV, startV) * CFrame.new(0,0,-distance/2)
+                game:GetService("Debris"):AddItem(bullet, .25)
+
+                -- IMPORTANT: store in GlobalRenders so ActiveRender re-fires them
+                AddBulletToTable(startV, endV, bullet)
+
+                bullet.Transparency = .93
+            end
+        end
+
+        inputBox:Destroy()
+    end)
+end)
+
+
+-- === FULL HAVOC (MULTI-SPOT) ===
+Buttons.FullHavocButton.MouseButton1Click:Connect(function()
+    if not DrawSettings.FullHavocLoop then
+        DrawSettings.FullHavocLoop = true
+        DrawSettings.FullHavocPlacement = true
+
+        DrawSettings.FullHavocEntries = {}
+        DrawSettings.FullHavocNextId = 0
+
+        Buttons.FullHavocButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE (Press E to stop placing)"
+        Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        DrawSettings.FullHavocClickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+
+            -- Left click: add origin
+            if DrawSettings.FullHavocPlacement and input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local origin = Vector3.new(mouse.Hit.p.X, mouse.Hit.p.Y, mouse.Hit.p.Z)
+
+                DrawSettings.FullHavocNextId += 1
+                local id = DrawSettings.FullHavocNextId
+                local loopName = "FullHavoc_" .. tostring(id)
+
+                table.insert(DrawSettings.FullHavocEntries, {id = id, origin = origin, loopName = loopName})
+
+                Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#DrawSettings.FullHavocEntries) .. " (Press E to stop placing)"
+                Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                startLoop(loopName, function(loop)
+                    while loop.running do
+                        local args = {}
+                        for i = 1, 100 do
+                            local randomVec = origin + Vector3.new(
+                                math.random(-150, 150),
+                                math.random(-75, 75),
+                                math.random(-150, 150)
+                            )
+                            local dir = (randomVec - origin)
+                            if dir.Magnitude > 0 then
+                                local perp = math.abs(dir.Unit.Y) < 0.99 and dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit or dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
+                                for j = 1, 25 do
+                                    local offset = (((j - 1) / 24) - 0.5) * 1.5
+                                    table.insert(args, {START = origin + perp * offset, END = randomVec + perp * offset})
+                                end
+                            end
+                        end
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        for _ = 1, 5 do if not loop.running then return end task.wait(0.05) end
+                    end
+                end)
+            end
+
+            -- Right click: remove last
+            if DrawSettings.FullHavocPlacement and input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
+                local entries = DrawSettings.FullHavocEntries
+                if entries and #entries > 0 then
+                    local entry = table.remove(entries)
+                    if entry and entry.loopName then
+                        stopLoop(entry.loopName)
+                    end
+                    Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#entries) .. " (Press E to stop placing)"
+                end
+            end
+
+            -- Press E: exit placement mode, keep loops running
+            if input.KeyCode == Enum.KeyCode.E and DrawSettings.FullHavocPlacement then
+                DrawSettings.FullHavocPlacement = false
+                Buttons.FullHavocButton.Text = "HAVOC SPOTS: " .. tostring(#DrawSettings.FullHavocEntries)
+            end
+        end)
+
+    else
+        -- Toggle off: stop all
+        DrawSettings.FullHavocLoop = false
+        DrawSettings.FullHavocPlacement = false
+
+        Buttons.FullHavocButton.Text = "FULL HAVOC: OFF"
+        Buttons.FullHavocButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+        if DrawSettings.FullHavocClickConn then
+            DrawSettings.FullHavocClickConn:Disconnect()
+            DrawSettings.FullHavocClickConn = nil
+        end
+
+        if DrawSettings.FullHavocEntries then
+            for _, entry in ipairs(DrawSettings.FullHavocEntries) do
+                if entry and entry.loopName then
+                    stopLoop(entry.loopName)
+                end
+            end
+        end
+
+        DrawSettings.FullHavocEntries = nil
+    end
+end)
+
+
+-- === EXTRA TERROR FEATURE ===
+-- === EXTRA TERROR (MULTI-SPOT) ===
+-- === EXTRA TERROR (MULTI-SPOT) ===
+Buttons.ExtraTerrorButton.MouseButton1Click:Connect(function()
+    if not DrawSettings.ExtraTerrorLoop then
+        DrawSettings.ExtraTerrorLoop = true
+        DrawSettings.ExtraTerrorPlacement = true
+
+        DrawSettings.ExtraTerrorEntries = {}
+        DrawSettings.ExtraTerrorNextId = 0
+
+        Buttons.ExtraTerrorButton.Text = "LEFT-CLICK: ADD • RIGHT-CLICK: REMOVE (Press E to stop placing)"
+        Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        DrawSettings.ExtraTerrorClickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+
+            -- Left click: add origin
+            if DrawSettings.ExtraTerrorPlacement and input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local origin = Vector3.new(mouse.Hit.p.X, mouse.Hit.p.Y, mouse.Hit.p.Z)
+
+                DrawSettings.ExtraTerrorNextId += 1
+                local id = DrawSettings.ExtraTerrorNextId
+                local loopName = "ExtraTerror_" .. tostring(id)
+
+                table.insert(DrawSettings.ExtraTerrorEntries, {id = id, origin = origin, loopName = loopName})
+
+                Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#DrawSettings.ExtraTerrorEntries) .. " (Press E to stop placing)"
+                Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                startLoop(loopName, function(loop)
+                    local directions = 40
+                    local boldness = 20
+                    while loop.running do
+                        local args = {}
+                        for i = 1, directions do
+                            local randomVec = origin + Vector3.new(
+                                math.random(-150, 150),
+                                math.random(-75, 75),
+                                math.random(-150, 150)
+                            )
+                            local dir = (randomVec - origin)
+                            if dir.Magnitude > 0 then
+                                local perp = math.abs(dir.Unit.Y) < 0.99 and dir.Unit:Cross(Vector3.new(0, 1, 0)).Unit or dir.Unit:Cross(Vector3.new(1, 0, 0)).Unit
+                                for j = 1, boldness do
+                                    local offset = (((j - 1) / (boldness - 1)) - 0.5) * 1.5
+                                    table.insert(args, {START = origin + perp * offset, END = randomVec + perp * offset})
+                                end
+                            end
+                        end
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        task.wait(0.2)
+                        directions += 20
+                        boldness += 10
+                    end
+                end)
+            end
+
+            -- Right click: remove last
+            if DrawSettings.ExtraTerrorPlacement and input.UserInputType == Enum.UserInputType.MouseButton2 and not DrawSettings.HoveringOverGui then
+                local entries = DrawSettings.ExtraTerrorEntries
+                if entries and #entries > 0 then
+                    local entry = table.remove(entries)
+                    if entry and entry.loopName then
+                        stopLoop(entry.loopName)
+                    end
+                    Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#entries) .. " (Press E to stop placing)"
+                end
+            end
+
+            -- Press E: exit placement mode, keep loops running
+            if input.KeyCode == Enum.KeyCode.E and DrawSettings.ExtraTerrorPlacement then
+                DrawSettings.ExtraTerrorPlacement = false
+                Buttons.ExtraTerrorButton.Text = "TERROR SPOTS: " .. tostring(#DrawSettings.ExtraTerrorEntries)
+            end
+        end)
+
+    else
+        -- Toggle off: stop all
+        DrawSettings.ExtraTerrorLoop = false
+        DrawSettings.ExtraTerrorPlacement = false
+
+        Buttons.ExtraTerrorButton.Text = "EXTRA TERROR: OFF"
+        Buttons.ExtraTerrorButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+
+        if DrawSettings.ExtraTerrorClickConn then
+            DrawSettings.ExtraTerrorClickConn:Disconnect()
+            DrawSettings.ExtraTerrorClickConn = nil
+        end
+
+        if DrawSettings.ExtraTerrorEntries then
+            for _, entry in ipairs(DrawSettings.ExtraTerrorEntries) do
+                if entry and entry.loopName then
+                    stopLoop(entry.loopName)
+                end
+            end
+        end
+
+        DrawSettings.ExtraTerrorEntries = nil
+    end
+end)
+
+
+
+
+
+-- Button Handlers
+
+-- === PENTAGRAM RAIN FEATURE ===
+DrawSettings.PentagramRainLoop = DrawSettings.PentagramRainLoop or false
+
+Buttons.PentagramRainButton.MouseButton1Click:Connect(function()
+    DrawSettings.PentagramRainLoop = not DrawSettings.PentagramRainLoop
+    if DrawSettings.PentagramRainLoop then
+        Buttons.PentagramRainButton.Text = "PENTAGRAM RAIN: ON"
+        Buttons.PentagramRainButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+        startLoop("PentagramRainLoop", function(loop)
+            while loop.running do
+                local allBullets = {}
+
+                -- Spawn 50 pentagrams
+                for i = 1, 50 do
+                    -- Pick a base position near a random player
+                    local basePlayer = getOtherPlayers()[math.random(1, math.max(1, #getOtherPlayers()))]
+                    local basePos
+                    if basePlayer and basePlayer.Character and basePlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local hrp = basePlayer.Character.HumanoidRootPart
+                        basePos = hrp.Position + Vector3.new(math.random(-40,40), 0, math.random(-40,40))
+                    else
+                        basePos = Vector3.new(math.random(-100,100), 0, math.random(-100,100))
+                    end
+
+                    -- Height above ground (5–6 meters)
+                    local center = Vector3.new(basePos.X, basePos.Y + math.random(16, 20), basePos.Z)
+                    local size = 6 -- radius of pentagram
+
+                    -- Calculate 5 points of pentagram in 3D (top-down)
+                    local points = {}
+                    for p = 0, 4 do
+                        local angle = math.rad((p * 72) - 90) -- start pointing up
+                        local x = center.X + size * math.cos(angle)
+                        local z = center.Z + size * math.sin(angle)
+                        table.insert(points, Vector3.new(x, center.Y, z))
+                    end
+
+                    -- Connect points in pentagram pattern (skip 1 each time)
+                    local order = {1, 3, 5, 2, 4, 1}
+                    for j = 1, #order-1 do
+                        table.insert(allBullets, {
+                            START = points[order[j]],
+                            END = points[order[j+1]]
+                        })
+                    end
+                end
+
+                -- Fire all lines as bold
+                local oldBold = DrawSettings.BoldBullet
+                DrawSettings.BoldBullet = true
+                Fire_Replicated_Bullet(allBullets, false) -- non-lethal
+                DrawSettings.BoldBullet = oldBold
+
+                task.wait(1) -- every 1 second
+            end
+        end)
+
+    else
+        Buttons.PentagramRainButton.Text = "PENTAGRAM RAIN: OFF"
+        Buttons.PentagramRainButton.TextColor3 = neutralBtn
+        stopLoop("PentagramRainLoop")
+    end
+end)
+-- === END PENTAGRAM RAIN ===
+
+
+
+
+
+-- === STAR RAIN FEATURE ===
+DrawSettings.StarRainLoop = DrawSettings.StarRainLoop or false
+
+Buttons.StarRainButton.MouseButton1Click:Connect(function()
+    DrawSettings.StarRainLoop = not DrawSettings.StarRainLoop
+    if DrawSettings.StarRainLoop then
+        Buttons.StarRainButton.Text = "STAR RAIN: ON"
+        Buttons.StarRainButton.TextColor3 = Color3.fromRGB(255, 215, 0) -- gold
+
+        startLoop("StarRainLoop", function(loop)
+            while loop.running do
+                local bullets = {}
+
+                -- We’ll spawn 50 stars around the map (random positions)
+                for i = 1, 50 do
+                    -- Pick a random position near players so they can see
+                    local basePlayer = getOtherPlayers()[math.random(1, math.max(1, #getOtherPlayers()))]
+                    local basePos
+                    if basePlayer and basePlayer.Character and basePlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local hrp = basePlayer.Character.HumanoidRootPart
+                        -- Random offset within ~40 studs radius
+                        basePos = hrp.Position + Vector3.new(math.random(-40,40), 0, math.random(-40,40))
+                    else
+                        basePos = Vector3.new(math.random(-100,100), 0, math.random(-100,100))
+                    end
+
+                    -- Position star 5–6 meters (~16–20 studs) above ground
+                    local startPos = Vector3.new(basePos.X, basePos.Y + math.random(16, 20), basePos.Z)
+                    -- End pos slightly above so tracer is visible but short
+                    local endPos = startPos + Vector3.new(0, 0.5, 0)
+
+                    table.insert(bullets, {
+                        START = startPos,
+                        END = endPos
+                    })
+                end
+
+                -- Fire all bullets at once as bold
+                local oldBold = DrawSettings.BoldBullet
+                DrawSettings.BoldBullet = true
+                Fire_Replicated_Bullet(bullets, false) -- false = non-lethal
+                DrawSettings.BoldBullet = oldBold
+
+                task.wait(1) -- every 1 second
+            end
+        end)
+
+    else
+        Buttons.StarRainButton.Text = "STAR RAIN: OFF"
+        Buttons.StarRainButton.TextColor3 = neutralBtn
+        stopLoop("StarRainLoop")
+    end
+end)
+
+
+
+
+
+DrawSettings.FlingRay = DrawSettings.FlingRay or false
+
+Buttons.FlingRayButton.MouseButton1Click:Connect(function()
+    DrawSettings.FlingRay = not DrawSettings.FlingRay
+    if DrawSettings.FlingRay then
+        Buttons.FlingRayButton.Text = "FLING RAY: ON"
+        Buttons.FlingRayButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+    else
+        Buttons.FlingRayButton.Text = "FLING RAY: OFF"
+        Buttons.FlingRayButton.TextColor3 = neutralBtn
+    end
+end)
+
+-- helper to create fling collider
+local function createFlingCollider(startPos, endPos)
+    local part = Instance.new("Part")
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 1
+    part.Size = Vector3.new(0.2, 0.2, (startPos - endPos).Magnitude)
+    part.CFrame = CFrame.new((startPos + endPos)/2, endPos)
+    part.Parent = workspace
+
+    part.Touched:Connect(function(hit)
+        if not DrawSettings.FlingRay then return end
+        local plr = game.Players:GetPlayerFromCharacter(hit.Parent)
+        if plr and plr ~= game.Players.LocalPlayer then
+            local hrp = hit.Parent:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Velocity = Vector3.new(0, 200, 0) -- fling upward
+            end
+        end
+    end)
+
+    game.Debris:AddItem(part, 0.1) -- remove after short time
+end
+
+-- hook into your bullet firing to spawn colliders
+local oldFire = Fire_Replicated_Bullet
+Fire_Replicated_Bullet = function(bullets, doDamage)
+    if DrawSettings.FlingRay then
+        for _, b in ipairs(bullets) do
+            if b.START and b.END then
+                createFlingCollider(b.START, b.END)
+            end
+
+            DrawSettings.LocalFlingColliders = DrawSettings.LocalFlingColliders or {}
+
+-- last time we flung local player (cooldown)
+DrawSettings.LastLocalFling = DrawSettings.LastLocalFling or 0
+local LOCAL_FLING_COOLDOWN = 0.75 -- seconds between flings to avoid repeat spam
+local LOCAL_FLING_DISTANCE_THRESHOLD = 0.9 -- studs; distance from HRP to segment to trigger fling
+
+-- helper: distance from point p to segment [a,b], returns distance and closest point
+local function pointToSegmentDistance(p, a, b)
+    local ab = b - a
+    local abDot = ab:Dot(ab)
+    if abDot == 0 then
+        return (p - a).Magnitude, a
+    end
+    local t = (p - a):Dot(ab) / abDot
+    if t < 0 then t = 0 elseif t > 1 then t = 1 end
+    local closest = a + ab * t
+    return (p - closest).Magnitude, closest
+end
+
+-- Wrap Fire_Replicated_Bullet to record bullet segments locally when FlingRay is ON.
+-- We do NOT change the original behavior; we only append local collider records.
+do
+    local _origFire = Fire_Replicated_Bullet
+    Fire_Replicated_Bullet = function(args, doDamage)
+        -- record local collider info if user enabled FlingRay
+        if DrawSettings.FlingRay then
+            local now = os.clock()
+            for _, seg in ipairs(args or {}) do
+                if seg and seg.START and seg.END then
+                    -- store a tiny-lived collider (client-side only)
+                    table.insert(DrawSettings.LocalFlingColliders, {
+                        START = seg.START,
+                        END = seg.END,
+                        EXPIRE = now + 0.18 -- keep ~0.18s (matches your ray lifetime)
+                    })
+                end
+            end
+        end
+        -- call original function (preserve server calls / visuals)
+        return _origFire(args, doDamage)
+    end
+end
+
+-- background loop: check local colliders for intersection with our local player
+task.spawn(function()
+    while task.wait(0.04) do -- ~25Hz check (fast enough, cheap)
+        -- quick exit if no colliders
+        if not DrawSettings.LocalFlingColliders or #DrawSettings.LocalFlingColliders == 0 then
+            -- still cleanup expired entries occasionally
+            local now = os.clock()
+            for i = #DrawSettings.LocalFlingColliders, 1, -1 do
+                if DrawSettings.LocalFlingColliders[i].EXPIRE <= now then
+                    table.remove(DrawSettings.LocalFlingColliders, i)
+                end
+            end
+            continue
+        end
+
+        local char = plr.Character
+        local hrp = char and (char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart)
+        if not hrp then
+            -- if no HRP, just purge expired colliders
+            local now = os.clock()
+            for i = #DrawSettings.LocalFlingColliders, 1, -1 do
+                if DrawSettings.LocalFlingColliders[i].EXPIRE <= now then
+                    table.remove(DrawSettings.LocalFlingColliders, i)
+                end
+            end
+            continue
+        end
+
+        local now = os.clock()
+        for i = #DrawSettings.LocalFlingColliders, 1, -1 do
+            local col = DrawSettings.LocalFlingColliders[i]
+            if not col then
+                table.remove(DrawSettings.LocalFlingColliders, i)
+            elseif col.EXPIRE <= now then
+                table.remove(DrawSettings.LocalFlingColliders, i)
+            else
+                -- test distance from HRP to segment
+                local dist, closest = pointToSegmentDistance(hrp.Position, col.START, col.END)
+                if dist <= LOCAL_FLING_DISTANCE_THRESHOLD then
+                    -- apply fling to local player (client-side). Use cooldown to avoid spamming.
+                    if now - (DrawSettings.LastLocalFling or 0) >= LOCAL_FLING_COOLDOWN then
+                        DrawSettings.LastLocalFling = now
+                        -- direction away from the closest point on segment
+                        local ok, _ = pcall(function()
+                            local dir = (hrp.Position - closest)
+                            if dir.Magnitude < 0.001 then
+                                dir = Vector3.new(0,1,0)
+                            end
+                            dir = dir.Unit
+                            -- Tune these numbers to get the desired 'fling' feel
+                            local horizontalSpeed = 80
+                            local verticalBoost = 60
+                            -- Use AssemblyLinearVelocity if available; fallback to Velocity
+                            if hrp:FindFirstChildWhichIsA("BasePart") then end -- noop
+                            hrp.AssemblyLinearVelocity = dir * horizontalSpeed + Vector3.new(0, verticalBoost, 0)
+                        end)
+                        -- optional visual feedback: you can add a small particle or sound here
+                    end
+                    -- remove collider immediately so it can't trigger again same tick
+                    table.remove(DrawSettings.LocalFlingColliders, i)
+                end
+            end
+        end
+    end
+end)
+-- ===== END LOCAL-FLING DETECTION =====
+        end
+    end
+    return oldFire(bullets, doDamage)
+end
+
+
+
+DrawSettings.SmiteLoop = DrawSettings.SmiteLoop or false
+
+Buttons.SmiteButton.MouseButton1Click:Connect(function()
+    DrawSettings.SmiteLoop = not DrawSettings.SmiteLoop
+    if DrawSettings.SmiteLoop then
+        Buttons.SmiteButton.Text = "SMITE: ON"
+        Buttons.SmiteButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+        startLoop("SmiteLoop", function(loop)
+            while loop.running do
+                local allBullets = {}
+
+                for _, player in ipairs(getOtherPlayers()) do
+                    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local center = hrp.Position
+                        -- generate 5 bold bullets for this player's root
+                        for i = 1, 5 do
+                            local offset = Vector3.new(
+                                math.random(-30, 30) / 10, -- small variation
+                                math.random(-30, 30) / 10,
+                                math.random(-30, 30) / 10
+                            )
+                            local startPos = center + offset + Vector3.new(0, 20, 0) -- from above a bit
+                            local endPos = center + offset
+                            table.insert(allBullets, {
+                                START = startPos,
+                                END = endPos,
+                                HIT = player
+                            })
+                        end
+                    end
+                end
+
+                if #allBullets > 0 then
+                    local oldBold = DrawSettings.BoldBullet
+                    DrawSettings.BoldBullet = true
+                    Fire_Replicated_Bullet(allBullets, true) -- lethal
+                    DrawSettings.BoldBullet = oldBold
+                end
+
+                task.wait(0.4) -- loop delay
+            end
+        end)
+
+    else
+        Buttons.SmiteButton.Text = "SMITE: OFF"
+        Buttons.SmiteButton.TextColor3 = neutralBtn
+        stopLoop("SmiteLoop")
+    end
+end)
+
+
+
+-- === BLIND FEATURE (360° Bullet Shield) ===
+DrawSettings.BlindLoop = DrawSettings.BlindLoop or false
+DrawSettings.BlindTarget = DrawSettings.BlindTarget or nil
+
+local function getPlayerFromPart(part)
+    if not part then return nil end
+    local model = part:FindFirstAncestorOfClass("Model")
+    if model and model:FindFirstChild("Humanoid") then
+        return game:GetService("Players"):GetPlayerFromCharacter(model)
+    end
+    return nil
+end
+
+local blindClickConn = nil
+
+Buttons.BlindButton.MouseButton1Click:Connect(function()
+    -- Toggle OFF
+    if DrawSettings.BlindLoop then
+        DrawSettings.BlindLoop = false
+        DrawSettings.BlindTarget = nil
+        Buttons.BlindButton.Text = "BLIND: OFF"
+        Buttons.BlindButton.TextColor3 = neutralBtn or Color3.fromRGB(40,40,40)
+        if blindClickConn then blindClickConn:Disconnect() blindClickConn = nil end
+        stopLoop("BlindLoop")
+        return
+    end
+
+    -- Enter selection mode
+    Buttons.BlindButton.Text = "BLIND: CLICK TARGET..."
+    Buttons.BlindButton.TextColor3 = Color3.fromRGB(255,160,0)
+
+    local mouse = plr:GetMouse()
+    if blindClickConn then blindClickConn:Disconnect() blindClickConn = nil end
+
+    blindClickConn = mouse.Button1Down:Connect(function()
+        if DrawSettings.HoveringOverGui then return end
+        local targetPart = mouse.Target
+        local targetPlayer = getPlayerFromPart(targetPart)
+        if not targetPlayer then return end
+
+        -- Got a target
+        DrawSettings.BlindTarget = targetPlayer
+        DrawSettings.BlindLoop = true
+        Buttons.BlindButton.Text = "BLIND -> " .. tostring(targetPlayer.Name)
+        Buttons.BlindButton.TextColor3 = Color3.fromRGB(255,80,80)
+        if blindClickConn then blindClickConn:Disconnect() blindClickConn = nil end
+
+        -- Start loop
+        startLoop("BlindLoop", function(loop)
+            while loop.running do
+                local tp = DrawSettings.BlindTarget
+                if not tp or not tp.Character then
+                    DrawSettings.BlindLoop = false
+                    DrawSettings.BlindTarget = nil
+                    Buttons.BlindButton.Text = "BLIND: OFF"
+                    Buttons.BlindButton.TextColor3 = neutralBtn or Color3.fromRGB(40,40,40)
+                    return
+                end
+
+                local head = tp.Character:FindFirstChild("Head")
+                if head then
+                    local bulletData = {}
+                    local center = head.Position
+                    local radius = 2 -- distance from head to bullet start
+
+                    -- Generate bullets all around head in a sphere
+                    for i = 1, 40 do -- increase for denser shield
+                        local theta = math.random() * math.pi * 2 -- horizontal angle
+                        local phi = math.acos(2 * math.random() - 1) -- vertical angle
+                        local offset = Vector3.new(
+                            radius * math.sin(phi) * math.cos(theta),
+                            radius * math.cos(phi),
+                            radius * math.sin(phi) * math.sin(theta)
+                        )
+
+                        local startPos = center + offset
+                        -- Make bullets travel slightly outward from sphere
+                        local dir = offset.Unit * 5
+                        local endPos = startPos + dir
+
+                        table.insert(bulletData, {
+                            START = startPos,
+                            END = endPos
+                        })
+                    end
+
+                    -- Fire bold, non-lethal bullets
+                    local oldBold = DrawSettings.BoldBullet
+                    DrawSettings.BoldBullet = true
+                    Fire_Replicated_Bullet(bulletData, false)
+                    DrawSettings.BoldBullet = oldBold
+                end
+
+                task.wait(0.5) -- repeat every 0.5 seconds
+            end
+        end)
+    end)
+end)
+-- === END BLIND FEATURE ===
+
+
+
+-- === RAVE FEATURE (vertical from sky, lethal) ===
+Buttons.RaveButton.MouseButton1Click:Connect(function()
+    DrawSettings.RaveLoop = not DrawSettings.RaveLoop
+    if DrawSettings.RaveLoop then
+        Buttons.RaveButton.Text = "RAVE: ON"
+        Buttons.RaveButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+        startLoop("RaveLoop", function(loop)
+            while loop.running do
+                local allArgs = {}
+                for _, player in ipairs(getOtherPlayers()) do
+                    local head = player.Character and player.Character:FindFirstChild("Head")
+                    if head then
+                        -- origin high above map
+                        local origin = Vector3.new(head.Position.X, head.Position.Y + 300, head.Position.Z)
+                        -- ensure lethal: head is HIT
+                        table.insert(allArgs, {
+                            START = origin,
+                            END = head.Position,
+                            HIT = player
+                        })
+                    end
+                end
+                if #allArgs > 0 then
+                    Fire_Replicated_Bullet(allArgs, true) -- true means lethal in your file’s function
+                end
+                task.wait(0.3) -- faster shooting for more damage
+            end
+        end)
+
+    else
+        Buttons.RaveButton.Text = "RAVE: OFF"
+        Buttons.RaveButton.TextColor3 = neutralBtn
+        stopLoop("RaveLoop")
+    end
+end)
+
+
+
+
+Buttons.VetoForAllButton.MouseButton1Click:Connect(function()
+    drawVetoForAll()
+end)
+Buttons.VetoForAllLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.VetoAllLoop = not DrawSettings.VetoAllLoop
+    if DrawSettings.VetoAllLoop then
+        Buttons.VetoForAllLoopButton.Text = "VETO FOR ALL LOOP: ON"
+        startLoop("VetoAllLoop", function(loop)
+            while loop.running do
+                drawVetoForAll()
+                for _=1,8 do if not loop.running then return end task.wait(0.11) end
+            end
+        end)
+    else
+        Buttons.VetoForAllLoopButton.Text = "VETO FOR ALL LOOP: OFF"
+        stopLoop("VetoAllLoop")
+    end
+end)
+
+
+local giantScale = 12 -- even bigger
+
+Buttons.HumanLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.HumanLoop = not DrawSettings.HumanLoop
+
+    if DrawSettings.HumanLoop then
+        Buttons.HumanLoopButton.Text = "CLICK TO PLACE HUMAN..."
+        Buttons.HumanLoopButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        local clickConn
+        clickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local pos = mouse.Hit.p
+
+                Buttons.HumanLoopButton.Text = "HUMAN LOOP: ON"
+                Buttons.HumanLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                startLoop("HumanLoop", function(loop)
+                    while loop.running do
+                        local args = CreateHumanArgs(pos, giantScale)
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        task.wait(0.4)
+                    end
+                end)
+
+                clickConn:Disconnect()
+            end
+        end)
+    else
+        Buttons.HumanLoopButton.Text = "HUMAN LOOP: OFF"
+        Buttons.HumanLoopButton.TextColor3 = Color3.fromRGB(200, 150, 100)
+        stopLoop("HumanLoop")
+    end
+end)
+
+-- === MULTI HUMAN LOOP ===
+Buttons.MultiHumanLoopButton.MouseButton1Click:Connect(function()
+    if not DrawSettings.MultiHumanLoop then
+        -- Turn on loop
+        DrawSettings.MultiHumanLoop = true
+        DrawSettings.MultiHumanPlacement = true
+
+        Buttons.MultiHumanLoopButton.Text = "CLICK TO PLACE HUMANS... (Press E to stop placing)"
+        Buttons.MultiHumanLoopButton.TextColor3 = Color3.fromRGB(255, 255, 125)
+
+        DrawSettings.MultiHumanEntries = {}
+        DrawSettings.MultiHumanNextId = 0
+
+        -- Input handling
+        DrawSettings.MultiHumanClickConn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+
+            -- Left-click → place new human
+            if DrawSettings.MultiHumanPlacement 
+                and input.UserInputType == Enum.UserInputType.MouseButton1 
+                and not DrawSettings.HoveringOverGui then
+
+                local mouse = plr:GetMouse()
+                local pos = mouse.Hit.p
+
+                DrawSettings.MultiHumanNextId += 1
+                local id = DrawSettings.MultiHumanNextId
+                local loopName = "MultiHuman_" .. tostring(id)
+
+                table.insert(DrawSettings.MultiHumanEntries, {
+                    id = id,
+                    origin = pos,
+                    loopName = loopName
+                })
+
+                Buttons.MultiHumanLoopButton.Text = 
+                    "HUMANS PLACED: " .. tostring(#DrawSettings.MultiHumanEntries) .. " (Press E to stop placing)"
+                Buttons.MultiHumanLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+                -- Start drawing loop for this human
+                startLoop(loopName, function(loop)
+                    while loop.running do
+                        local args = CreateHumanArgs(pos, giantScale or 12) -- giantScale fallback
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        task.wait(0.4)
+                    end
+                end)
+            end
+
+            -- Press E → exit placement mode but keep loops running
+            if input.KeyCode == Enum.KeyCode.E and DrawSettings.MultiHumanPlacement then
+                DrawSettings.MultiHumanPlacement = false
+                Buttons.MultiHumanLoopButton.Text = 
+                    "HUMANS PLACED: " .. tostring(#DrawSettings.MultiHumanEntries)
+            end
+        end)
+
+    else
+        -- Turn off everything
+        DrawSettings.MultiHumanLoop = false
+        DrawSettings.MultiHumanPlacement = false
+
+        Buttons.MultiHumanLoopButton.Text = "MULTI HUMAN LOOP: OFF"
+        Buttons.MultiHumanLoopButton.TextColor3 = Color3.fromRGB(255, 200, 150)
+
+        -- Disconnect click listener
+        if DrawSettings.MultiHumanClickConn then
+            DrawSettings.MultiHumanClickConn:Disconnect()
+            DrawSettings.MultiHumanClickConn = nil
+        end
+
+        -- Stop all active human loops
+        if DrawSettings.MultiHumanEntries then
+            for _, entry in ipairs(DrawSettings.MultiHumanEntries) do
+                if entry and entry.loopName then
+                    stopLoop(entry.loopName)
+                end
+            end
+        end
+
+        DrawSettings.MultiHumanEntries = nil
+    end
+end)
+
+
+
+Buttons.ApostlesForAllButton.MouseButton1Click:Connect(function()
+    DrawSettings.ApostlesAllLoop = not DrawSettings.ApostlesAllLoop
+
+    if DrawSettings.ApostlesAllLoop then
+        Buttons.ApostlesForAllButton.Text = "APOSTLES FOR ALL: ON"
+        Buttons.ApostlesForAllButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+
+        -- Main loop: build ALL players' segments first, then call Fire_Replicated_Bullet ONCE per tick
+        startLoop("ApostlesAllLoop", function(loop)
+            while loop.running do
+                local allArgs = {}
+
+                -- get players including yourself (same behavior as old Veto for all)
+                for _, player in ipairs(getOtherPlayers(true)) do
+                    local head = player.Character and player.Character:FindFirstChild("Head")
+                    local root = player.Character and player.Character.PrimaryPart
+                    if head and root then
+                        -- orient text so it faces the same direction as player's torso
+                        local look = root.CFrame.LookVector
+                        local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+                        local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+
+                        -- slightly above the center of their head (tweak Y offset if needed)
+                        local drawPos = head.Position + Vector3.new(0, 0.9, 0)
+
+                        -- create the segments for the word "APOSTLES"
+                        local segs = CreateTextArgs("APOSTLES", drawPos, facingCF, 0.42)
+                        for _, s in ipairs(segs) do
+                            table.insert(allArgs, s)
+                        end
+                    end
+                end
+
+                -- fire once for everyone (this avoids per-player blocking)
+                if #allArgs > 0 then
+                    Fire_Replicated_Bullet(allArgs, DrawSettings.DOKILL)
+                end
+
+                task.wait(0.6) -- one-second cadence (simultaneous for all players)
+            end
+        end)
+
+    else
+        Buttons.ApostlesForAllButton.Text = "APOSTLES FOR ALL: OFF"
+        Buttons.ApostlesForAllButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+        stopLoop("ApostlesAllLoop")
+    end
+end)
+
+
+Buttons.StarButton.MouseButton1Click:Connect(function()
+    drawStar(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new(), false)
+end)
+Buttons.StarLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.StarLoop = not DrawSettings.StarLoop
+    if DrawSettings.StarLoop then
+        Buttons.StarLoopButton.Text = "STAR LOOP: ON"
+        startLoop("StarLoop", function(loop)
+            while loop.running do
+                drawStar(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new(), false)
+                for _=1,10 do if not loop.running then return end task.wait(0.05) end
+            end
+        end)
+    else
+        Buttons.StarLoopButton.Text = "STAR LOOP: OFF"
+        stopLoop("StarLoop")
+    end
+end)
+Buttons.CircleButton.MouseButton1Click:Connect(function()
+    drawCircle(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new())
+end)
+Buttons.CircleLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.CircleLoop = not DrawSettings.CircleLoop
+    if DrawSettings.CircleLoop then
+        Buttons.CircleLoopButton.Text = "CIRCLE LOOP: ON"
+        startLoop("CircleLoop", function(loop)
+            while loop.running do
+                drawCircle(plr.Character and plr.Character:FindFirstChild("Head") and plr.Character.Head.Position or Vector3.new())
+                for _=1,10 do if not loop.running then return end task.wait(0.05) end
+            end
+        end)
+    else
+        Buttons.CircleLoopButton.Text = "CIRCLE LOOP: OFF"
+        stopLoop("CircleLoop")
+    end
+end)
+Buttons.FullTerrorButton.MouseButton1Click:Connect(function()
+    drawFullTerror()
+end)
+Buttons.FullTerrorLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.FullTerrorLoop = not DrawSettings.FullTerrorLoop
+    if DrawSettings.FullTerrorLoop then
+        Buttons.FullTerrorLoopButton.Text = "TERROR+ LOOP: ON"
+        startLoop("TerrorLoop", function(loop)
+            while loop.running do
+                drawFullTerror()
+                for _=1,10 do if not loop.running then return end task.wait(0.05) end
+            end
+        end)
+    else
+        Buttons.FullTerrorLoopButton.Text = "TERROR+ LOOP: OFF"
+        stopLoop("TerrorLoop")
+    end
+end)
+Buttons.VetoButton.MouseButton1Click:Connect(function()
+    local char = plr.Character
+    local head = char and char:FindFirstChild("Head")
+    local root = char and char.PrimaryPart
+    if head and root then
+        local look = root.CFrame.LookVector
+        local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+        local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+        drawVetoWord(head.Position, facingCF)
+    end
+end)
+Buttons.VetoLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.VetoLoop = not DrawSettings.VetoLoop
+    if DrawSettings.VetoLoop then
+        Buttons.VetoLoopButton.Text = "VETO LOOP: ON"
+        startLoop("VetoLoop", function(loop)
+            while loop.running do
+                local char = plr.Character
+                local head = char and char:FindFirstChild("Head")
+                local root = char and char.PrimaryPart
+                if head and root then
+                    local look = root.CFrame.LookVector
+                    local yrot = math.atan2(-look.Z, look.X) + math.pi/2
+                    local facingCF = CFrame.fromAxisAngle(Vector3.new(0,1,0), yrot)
+                    drawVetoWord(head.Position, facingCF)
+                end
+                for _=1,8 do if not loop.running then return end task.wait(0.11) end
+            end
+        end)
+    else
+        Buttons.VetoLoopButton.Text = "VETO LOOP: OFF"
+        stopLoop("VetoLoop")
+    end
+end)
+Buttons.ExtremeRandomButton.MouseButton1Click:Connect(function()
+    Buttons.ExtremeRandomButton.Text = "CHOOSE ORIGIN..."
+    Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(255,255,125)
+    DrawSettings.ExtremeRandomOrigin = nil
+    local conn
+    conn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+            local mouse = plr:GetMouse()
+            local pos = mouse.Hit.p
+            DrawSettings.ExtremeRandomOrigin = pos
+            Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: ON"
+            Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+            local args = {}
+            for i=1,50 do
+                local randomVec = pos + Vector3.new(
+                    math.random(-150,150),
+                    math.random(-75,75),
+                    math.random(-150,150)
+                )
+                table.insert(args, {START=pos, END=randomVec})
+            end
+            Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+            wait(0.1)
+            Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: OFF"
+            Buttons.ExtremeRandomButton.TextColor3 = sectionColors.Fun
+            conn:Disconnect()
+        end
+    end)
+end)
+Buttons.ExtremeRandomLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.ExtremeRandomLoop = not DrawSettings.ExtremeRandomLoop
+    if DrawSettings.ExtremeRandomLoop then
+        Buttons.ExtremeRandomLoopButton.Text = "EXT. RANDOM LOOP: ON"
+        Buttons.ExtremeRandomLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+        Buttons.ExtremeRandomButton.Text = "CHOOSE ORIGIN..."
+        Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(255,255,125)
+        DrawSettings.ExtremeRandomOrigin = nil
+        local conn
+        conn = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+                local mouse = plr:GetMouse()
+                local pos = mouse.Hit.p
+                DrawSettings.ExtremeRandomOrigin = pos
+                Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: ON"
+                Buttons.ExtremeRandomButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+                startLoop("ExtremeRandomLoop", function(loop)
+                    while loop.running do
+                        local args = {}
+                        for i=1,50 do
+                            local randomVec = pos + Vector3.new(
+                                math.random(-150,150),
+                                math.random(-75,75),
+                                math.random(-150,150)
+                            )
+                            table.insert(args, {START=pos, END=randomVec})
+                        end
+                        Fire_Replicated_Bullet(args, DrawSettings.DOKILL)
+                        for _=1,10 do if not loop.running then return end task.wait(0.05) end
+                    end
+                end)
+                conn:Disconnect()
+            end
+        end)
+    else
+        Buttons.ExtremeRandomLoopButton.Text = "EXT. RANDOM LOOP: OFF"
+        Buttons.ExtremeRandomLoopButton.TextColor3 = sectionColors.Fun
+        Buttons.ExtremeRandomButton.Text = "EXTREME RANDOM: OFF"
+        Buttons.ExtremeRandomButton.TextColor3 = sectionColors.Fun
+        stopLoop("ExtremeRandomLoop")
+    end
+end)
+Buttons.HeadshotButton.MouseButton1Click:Connect(function()
+    DrawSettings.Headshot = not DrawSettings.Headshot
+    if DrawSettings.Headshot then
+        Buttons.HeadshotButton.Text = "HEADSHOT ALL: ON"
+        Buttons.HeadshotButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+        local originY = 60
+        for _, player in ipairs(getOtherPlayers()) do
+            local head = player.Character and player.Character:FindFirstChild("Head")
+            if head then
+                local origin = head.Position + Vector3.new(0,originY,0)
+                local args = { {START=origin, END=head.Position, HIT=player} }
+                Fire_Replicated_Bullet(args, false)
+                task.spawn(function()
+                    wait((originY/200)+0.08)
+                    Fire_Replicated_Bullet(args, true)
+                end)
+            end
+        end
+        wait(0.01)
+        DrawSettings.Headshot = false
+        Buttons.HeadshotButton.Text = "HEADSHOT ALL: OFF"
+        Buttons.HeadshotButton.TextColor3 = sectionColors.PvP
+    else
+        Buttons.HeadshotButton.Text = "HEADSHOT ALL: OFF"
+        Buttons.HeadshotButton.TextColor3 = sectionColors.PvP
+    end
+end)
+Buttons.HeadshotLoopButton.MouseButton1Click:Connect(function()
+    DrawSettings.HeadshotLoop = not DrawSettings.HeadshotLoop
+    if DrawSettings.HeadshotLoop then
+        Buttons.HeadshotLoopButton.Text = "HEADSHOT LOOP: ON"
+        Buttons.HeadshotLoopButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+        startLoop("HeadshotLoop", function(loop)
+            while loop.running do
+                local originY = 60
+                for _, player in ipairs(getOtherPlayers()) do
+                    local head = player.Character and player.Character:FindFirstChild("Head")
+                    if head then
+                        local origin = head.Position + Vector3.new(0,originY,0)
+                        local args = { {START=origin, END=head.Position, HIT=player} }
+                        Fire_Replicated_Bullet(args, false)
+                        task.spawn(function()
+                            wait((originY/200)+0.08)
+                            Fire_Replicated_Bullet(args, true)
+                        end)
+                    end
+                end
+                for _=1,12 do if not loop.running then return end task.wait(0.05) end
+            end
+        end)
+    else
+        Buttons.HeadshotLoopButton.Text = "HEADSHOT LOOP: OFF"
+        Buttons.HeadshotLoopButton.TextColor3 = sectionColors.PvP
+        stopLoop("HeadshotLoop")
+    end
+end)
+Buttons.ActivateButton.MouseButton1Click:Connect(function()
+    DrawSettings.ActiveRender = not DrawSettings.ActiveRender
+    if DrawSettings.ActiveRender then
+        Buttons.ActivateButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+        Buttons.ActivateButton.Text = "RENDERING ACTIVE"
+        Buttons.ActivateDrawing.Text = "ACTIVATE DRAW"
+    else
+        Buttons.ActivateButton.TextColor3 = sectionColors.System
+        Buttons.ActivateButton.Text = "START RENDER"
+    end
+end)
+Buttons.ActivateDrawing.MouseButton1Click:Connect(function()
+    DrawSettings.Drawing = not DrawSettings.Drawing
+    if DrawSettings.Drawing then
+        Buttons.ActivateButton.TextColor3 = Color3.fromRGB(158, 76, 91)
+        Buttons.ActivateDrawing.Text = "DRAWING [CLICK TWO POINTS]"
+    else
+        Buttons.ActivateButton.TextColor3 = sectionColors.System
+        Buttons.ActivateDrawing.Text = "START DRAWING"
+    end
+end)
+Buttons.BoldDrawingButton.MouseButton1Click:Connect(function()
+    DrawSettings.BoldDrawing = not DrawSettings.BoldDrawing
+    if DrawSettings.BoldDrawing then
+        Buttons.BoldDrawingButton.Text = "BOLD DRAWING: ON"
+        Buttons.BoldDrawingButton.TextColor3 = Color3.fromRGB(73, 255, 125)
+    else
+        Buttons.BoldDrawingButton.Text = "BOLD DRAWING: OFF"
+        Buttons.BoldDrawingButton.TextColor3 = Color3.fromRGB(255, 209, 74)
+    end
+end)
+
+game:GetService("UserInputService").InputBegan:Connect(function(Input,c)
+    if not c  and Input.KeyCode == Enum.KeyCode.R then
+        DrawSettings.Rotating = true
+    end
+end)
+game:GetService("UserInputService").InputEnded:Connect(function(Input,c)
+    if not c and Input.KeyCode == Enum.KeyCode.R then
+        DrawSettings.Rotating = false
+    end
+    if not c and Input.UserInputType == Enum.UserInputType.Touch or Input.UserInputType == Enum.UserInputType.MouseButton1 and not DrawSettings.HoveringOverGui then
+        if DrawSettings.Drawing and DrawSettings.P1 and not DrawSettings.P2 then
+            DrawSettings.P2 = game:GetService("Players").LocalPlayer:GetMouse().Hit
+            return
+        end
+        if DrawSettings.Drawing and not DrawSettings.P1 then
+            DrawSettings.P1 = game:GetService("Players").LocalPlayer:GetMouse().Hit
+            DrawSettings.B = Instance.new("Part",workspace)
+            game:GetService("Players").LocalPlayer:GetMouse().TargetFilter = DrawSettings.B
+            local distance = (game:GetService("Players").LocalPlayer:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+            local mesh = Instance.new("BlockMesh",DrawSettings.B)
+            mesh.Scale = Vector3.new(.5,.5,1)
+            DrawSettings.B.Name = "RayPart"
+            DrawSettings.B.BrickColor = BrickColor.Yellow()
+            DrawSettings.B.Material = Enum.Material.Neon
+            DrawSettings.B.Anchored = true
+            DrawSettings.B.CanCollide = false
+            DrawSettings.B.Transparency = .5
+            DrawSettings.B.formFactor = Enum.FormFactor.Custom
+            DrawSettings.B.Size = Vector3.new(.2,.2,distance)
+            DrawSettings.B.CFrame = CFrame.new(game:GetService("Players").LocalPlayer:GetMouse().Hit.p,DrawSettings.P1.Position) * CFrame.new(0,0,-distance/2)
+            return
+        end
+    end
+end)
+Instance.new("UIDragDetector", MAINDRAW)
+task.spawn(function()
+    while task.wait() do
+        if tonumber(REFRESHRATE.Text) then
+            wait(tonumber(REFRESHRATE.Text) or .7)
+            if #DrawSettings.GlobalRenders>0 and DrawSettings.ActiveRender then
+                Fire_Replicated_Bullet(DrawSettings.GlobalRenders,DrawSettings.DOKILL)
+            end
+        end
+    end
+end)
+task.spawn(function()
+    while wait() do
+        if DrawSettings.Selected and DrawSettings.Selected.Part and DrawSettings.Rotating then
+            -- Rotation logic placeholder
+        end
+    end
+end)
+local RStep = game:service'RunService'.RenderStepped
+while RStep:Wait() do
+    if DrawSettings.Drawing then
+        repeat task.wait() until DrawSettings.B
+        repeat task.wait()
+            local distance = (game:GetService("Players").LocalPlayer:GetMouse().Hit.p - DrawSettings.P1.Position).magnitude
+            DrawSettings.B.Size = Vector3.new(.2,.2,distance)
+            DrawSettings.B.CFrame = CFrame.new(game:GetService("Players").LocalPlayer:GetMouse().Hit.p,DrawSettings.P1.Position) * CFrame.new(0,0,-distance/2)
+        until DrawSettings.P2
+        if DrawSettings.BoldDrawing then
+            local origin = DrawSettings.P1.p
+            local target = DrawSettings.P2.p
+            local dir = (target-origin)
+            local perp
+            if math.abs(dir.Unit.Y) < 0.99 then
+                perp = dir.Unit:Cross(Vector3.new(0,1,0)).Unit
+            else
+                perp = dir.Unit:Cross(Vector3.new(1,0,0)).Unit
+            end
+            local thickness = 1.2
+            local count = 40
+            for i=1,count do
+                local offset = (((i-1)/(count-1))-0.5) * thickness
+                local startOffset = origin + perp * offset
+                local endOffset = target + perp * offset
+                local bullet = Instance.new("Part",workspace)
+                local mesh = Instance.new("BlockMesh",bullet)
+                mesh.Scale = Vector3.new(.5,.5,1)
+                bullet.Name = "RayPart"
+                bullet.BrickColor = BrickColor.Yellow()
+                bullet.Material = Enum.Material.Neon
+                bullet.Anchored = true
+                bullet.CanCollide = false
+                bullet.Transparency = .5
+                bullet.formFactor = Enum.FormFactor.Custom
+                local distance = (endOffset-startOffset).magnitude
+                bullet.Size = Vector3.new(.2,.2,distance)
+                bullet.CFrame = CFrame.new(endOffset,startOffset) * CFrame.new(0,0,-distance/2)
+                game:GetService("Debris"):AddItem(bullet,.25)
+                AddBulletToTable(startOffset,endOffset,bullet)
+                bullet.Transparency = .93
+            end
+            DrawSettings.B:Destroy()
+        else
+            AddBulletToTable(DrawSettings.P1.p,DrawSettings.P2.p,DrawSettings.B)
+            DrawSettings.B.Transparency = .93
+        end
+        DrawSettings.B = nil
+        DrawSettings.P1 = nil
+        DrawSettings.P2 = nil
+    end
+end
+end
