@@ -5274,6 +5274,8 @@ end
 		if not Saved.Thread.DeathNukes then
 			Threads.DeathNukes()
 		end
+
+
 	elseif cm("undeathnuke") or cm("clearnuke") or cm("undnuke") then
 		local DaPlayer = PlrFromArgs(Args[2], LocalPlayer)
 		if DaPlayer then
@@ -5818,10 +5820,6 @@ end
 		else
 			Notif("Error", "Not a valid player.")
 		end
-
-
-
-
 	elseif cm("unwhitelist") or cm("unwl") or cm("unignore") or cm("blacklist") then
 		local DaPlayer = PlrFromArgs(Args[2], false)
 		if DaPlayer then
