@@ -6982,6 +6982,12 @@ end
 		if not Saved.Map_Mcdonalds then
 			Notif("Loading...", "Please wait patiently..."); Saved.Map_Mcdonalds = loadstring(game:HttpGet("https://raw.githubusercontent.com/Chaosscripter/Riotscripter-PrizzLife/main/Init/Maps/Mcdonalds.txt"))()
 		end; LocTP(Saved.Map_Mcdonalds); Notif("OK", "Teleported to mcdonalds")
+
+ elseif cm("drawtool") or cm("dt") then
+loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/Admiral's%20Drawtool"))()
+Notif("Success", "Drawtool loaded")
+
+
 	elseif cm("minecraft") then
 		local Sky = Instance.new("Sky"); Sky.SkyboxUp = "http://www.roblox.com/asset/?id=3822392413"; Sky.MoonTextureId = "rbxassetid://1176450669"; Sky.SkyboxLf = "http://www.roblox.com/asset/?id=3822391866"
 		Sky.SkyboxBk = "http://www.roblox.com/asset/?id=3822390508"; Sky.SkyboxFt = "http://www.roblox.com/asset/?id=3822391392"; Sky.StarCount = 0; Sky.SkyboxDn = "http://www.roblox.com/asset/?id=3822392871"
