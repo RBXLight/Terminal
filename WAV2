@@ -559,12 +559,12 @@ local Commands = {
     "wp / setwaypoint [name] -- set spawnpoint where you stand ";   
     "dwp / delwaypoint [name] -- remove spawnpoint";
     "getwpnames / getwaypointnames -- gets waypoint names";
-"telekinesis / Telekinesis -- Power!"
-"Rochips / rochips -- Loads RoChips panel"
-"Prizzlife / prizzlife -- Loads Prizzlife panel"
-"drawtool / Drawtool -- Loads a Drawtool"
-"Serverpanel / svpanel -- Loads a server panel"
-"clone / Clone -- Illusion!"
+"telekinesis / Telekinesis -- Power!";
+"Rochips / rochips -- Loads RoChips panel";
+"Prizzlife / prizzlife -- Loads Prizzlife panel";
+"drawtool / Drawtool -- Loads a Drawtool";
+"Serverpanel / svpanel -- Loads a server panel";
+"clone / Clone -- Illusion!";
     "clwp -- clears waypoints";
     --"vkill [plr] -- void kill player (kills them by sending them to the void)";
     "shock / fence [plr] -- kills player with fence ";
