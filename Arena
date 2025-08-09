@@ -1,0 +1,40 @@
+--[[
+    Client-Sided Infinite Floor with Collision
+    - Only one part, always under the player.
+    - CanCollide = true so you can stand and drive on it.
+    - Place in StarterPlayerScripts or StarterCharacterScripts.
+]]
+
+local centerY = 654.981201171875 -- Floor height
+local tileSize = 2048 -- Size of the part (studs)
+
+local floorPart = Instance.new("Part")
+floorPart.Name = "UltraEfficientClientFloor"
+floorPart.Anchored = true
+floorPart.CanCollide = true -- <-- COLLISION ENABLED!
+floorPart.Transparency = 0.1
+floorPart.Color = Color3.fromRGB(120, 120, 120)
+floorPart.Size = Vector3.new(tileSize, 1, tileSize)
+floorPart.Parent = workspace
+
+local function getPlayerPosition()
+    local plr = game.Players.LocalPlayer
+    local char = plr.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        return char.HumanoidRootPart.Position
+    end
+    return nil
+end
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    local pos = getPlayerPosition()
+    if not pos then return end
+
+    -- Snap to nearest tile center for seamless look
+    local snappedX = math.floor(pos.X / tileSize + 0.5) * tileSize
+    local snappedZ = math.floor(pos.Z / tileSize + 0.5) * tileSize
+
+    floorPart.Position = Vector3.new(snappedX, centerY, snappedZ)
+end)
+
+print("Ultra-efficient infinite collidable floor running!")
