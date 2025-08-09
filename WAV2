@@ -559,6 +559,12 @@ local Commands = {
     "wp / setwaypoint [name] -- set spawnpoint where you stand ";   
     "dwp / delwaypoint [name] -- remove spawnpoint";
     "getwpnames / getwaypointnames -- gets waypoint names";
+"telekinesis / Telekinesis -- Power!"
+"Rochips / rochips -- Loads RoChips panel"
+"Prizzlife / prizzlife -- Loads Prizzlife panel"
+"drawtool / Drawtool -- Loads a Drawtool"
+"Serverpanel / svpanel -- Loads a server panel"
+"clone / Clone -- Illusion!"
     "clwp -- clears waypoints";
     --"vkill [plr] -- void kill player (kills them by sending them to the void)";
     "shock / fence [plr] -- kills player with fence ";
@@ -4212,6 +4218,37 @@ end
         GiveAllItems()
         Notify("Success", "Obtained all possible items.", 2);
     end;
+if CMD("arena") or CMD("Arena") then
+loadstring(game:HttpGet("github.com/RBXLight/Terminal/blob/main/Arena"))()
+Notify("Success", "Arena has been created")
+end;
+if CMD("panel") or CMD('svpanel') then
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ltseverydayyou/uuuuuuu/refs/heads/main/ServerLister.lua"))()
+Notify("Success", "Panel has been loaded")
+end;
+if CMD("clone") or CMD("Clone") then
+	loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-FE-Illusion-Script-12744"))()
+Notify("Success", "Illusion has been created")
+end;
+if CMD("Telekinesis") then
+	loadstring(game:HttpGet('https://raw.githubusercontent.com/skibicumrocket/piss-monster/refs/heads/main/telekines.txt'))()
+Notify ("Success", "Telekinesis has been activated")
+end;
+if CMD("Drawtool") then
+loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/Admiral's%20Drawtool"))()
+Notify("Success", "Drawtool activated")
+end;
+if CMD("Rochips") or CMD("rochips") then
+	loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-Rochips-Universal-21865"))()
+Notify('Success', "Rochips has been activated")
+end;
+
+if CMD("prizzlife") or CMD ('Prizzlife') then
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/PL%200.8.2"))()
+Notify("Success", "Prizzlife loaded")
+end;
+
+
     if CMD("autoitems") or CMD("autoi") or CMD("aitems") then
         States.AutoItems = true;
         States.GiveGuns = true;
