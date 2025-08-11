@@ -6551,6 +6551,14 @@ end
 		else
 			Notif("Bruh", "You do not own the gamepass.")
 		end
+ elseif cm("shield") then
+  local s
+
+for i, v in pairs(game.Players:GetPlayers()) do
+    if v:FindFirstChild("Backpack") and (v.Backpack:FindFirstChild("Riot Shield") or v.Character and v.Character:FindFirstChild("Riot Shield")) then
+        s = v.Backpack:FindFirstChild("Riot Shield") or v.Character:FindFirstChild("Riot Shield")
+    end
+end
 	elseif cm("riothelmet") or cm("helmet") then
 		if LocPL.Gamepass then
 			ItemHand(workspace.Prison_ITEMS.hats, "Riot helmet")
