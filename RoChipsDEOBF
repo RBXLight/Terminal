@@ -1,4 +1,10 @@
 local v0 = false;
+
+local FORCE_PREMIUM = true -- set to true while developing to enable premium features
+
+
+
+
 local v1 = Color3.new(1, 0.917647, 0.0117647);
 local v2 = Color3.fromRGB(167, 167, 167);
 if _G.rp then
@@ -228,6 +234,12 @@ else
             Duration = 11;
         end;
     end;
+
+if FORCE_PREMIUM then
+    v0 = true
+end
+
+
     coroutine.wrap(function() --[[ Line: 0 ]] --[[ Name:  ]]
         -- upvalues: l_CoreGui_0 (ref), l_isfile_0 (ref), l_delfile_0 (ref), l_LocalPlayer_0 (ref)
         if isfolder("d_android_script_dir") then
