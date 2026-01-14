@@ -1,0 +1,152 @@
+-- AutoRespawn standalone feature extracted from PrisonX
+-- Includes only the required locals and helpers to function.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local Camera = workspace:WaitForChild("Camera")
+
+local LocalPlayer = Players.LocalPlayer
+local Teams = game:GetService("Teams")
+
+-- Remote used to request team changes (same name as in the original script)
+local TeamEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("RequestTeamChange")
+
+-- Minimal notification helper (uses StarterGui:SetCore like the original)
+local function Notify(text, time)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "AutoRespawn";
+            Text = text;
+            Duration = time or 2;
+        })
+    end)
+end
+
+-- Minimal camera fix helper to restore normal camera & HUD state after team switches
+local function fixcam()
+    pcall(function()
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+        Camera.CameraType = Enum.CameraType.Custom
+        if LocalPlayer.Character then
+            local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                Camera.CameraSubject = humanoid
+            end
+        end
+    end)
+end
+
+-- Settings required by the auto-respawn logic
+local settings = {
+    autorespawn = true,
+    autoguns = false, -- kept because original code conditionally avoided teleporting back if autoguns enabled
+}
+
+-- State variables referenced by the handler
+if not _G.TeamCooldown then
+    _G.TeamCooldown = 0
+end
+
+if not _G.CanQuickRespawn then
+    _G.CanQuickRespawn = true
+end
+
+local tring = false
+local fugging = false
+
+-- Quick respawn cooldown duration (left from original, not strictly required here)
+local cd_dur = 10
+local coolingdown = false
+
+function _G.ResetCooldown()
+    if not coolingdown then
+        coolingdown = true
+        _G.CanQuickRespawn = false
+        task.wait(cd_dur)
+        _G.CanQuickRespawn = true
+        coolingdown = false
+    end
+end
+
+-- Store last death position to teleport back to after respawn
+local lastDeathCFrame = nil
+
+-- Auto respawn handling (connects to CharacterAdded and sets up death behavior)
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local hum = char:WaitForChild("Humanoid")
+
+    -- Teleport to last stored position if it exists
+    if lastDeathCFrame then
+        if settings.autoguns then
+            -- if autoguns flow is used, original script avoided teleporting here
+        else
+            task.wait(0.1)
+            if hrp and lastDeathCFrame then
+                hrp.CFrame = lastDeathCFrame
+            end
+        end
+    end
+
+    hum.Died:Connect(function()
+        if settings.autorespawn == false then return end
+
+        if hrp then
+            lastDeathCFrame = hrp.CFrame
+        end
+
+        if TeamEvent then
+            if _G.CanQuickRespawn and os.time() >= _G.TeamCooldown then
+                _G.CanQuickRespawn = false
+                task.spawn(function()
+                    local currentTeam = LocalPlayer.Team
+                    if currentTeam == Teams.Inmates then
+                        repeat task.wait()
+                            TeamEvent:InvokeServer(Teams.Neutral)
+                        until LocalPlayer.Team == Teams.Neutral
+
+                        repeat task.wait()
+                            TeamEvent:InvokeServer(Teams.Inmates)
+                        until LocalPlayer.Team == Teams.Inmates
+
+                        fixcam()
+                    elseif currentTeam == Teams.Guards then
+                        repeat task.wait()
+                            TeamEvent:InvokeServer(Teams.Neutral)
+                        until LocalPlayer.Team == Teams.Neutral
+
+                        repeat task.wait()
+                            TeamEvent:InvokeServer(Teams.Guards)
+                        until LocalPlayer.Team == Teams.Guards
+
+                        fixcam()
+                    elseif currentTeam == Teams.Criminals then
+                       
+ repeat task.wait()
+                            TeamEvent:InvokeServer(Teams.Neutral)
+                        until LocalPlayer.Team == Teams.Neutral
+
+                        repeat task.wait()
+                             TeamEvent:InvokeServer(Teams.Inmates)
+                        until LocalPlayer.Team == Teams.Inmates
+
+                        fixcam()
+
+
+                    end
+
+                    _G.CanQuickRespawn = true
+                end)
+            end
+
+            if LocalPlayer.Team == Teams.Criminals then
+                tring = false
+                fugging = false
+            end
+        end
+    end)
+end)
+
+-- Optional: Inform that the auto-respawn feature is active
+Notify("AutoRespawn feature active", 3)
