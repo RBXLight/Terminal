@@ -18854,7 +18854,9 @@ cmd.add({"ARR"},{"ARR","Auto Respawn"},function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/e2f2fa7de4fb162637d2efe6de9acf501b9c2da5/GGGG"))()
 end)
 
-
+cmd.add({"arena"},{"arena","Car Arena"},function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/Arena"))()
+end)
 
 cmd.add({"Illusion"},{"Illusion","Target IIlusion"},function()
 	loadstring(game:HttpGet('https://pastebin.com/raw/3E6YNNfM'))()
