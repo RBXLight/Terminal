@@ -18893,7 +18893,9 @@ cmd.add({"BangFE"},{"FE Bang","FE Bang loop"},function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/sadfgsdafgsd32-oss/RBLX/refs/heads/main/BangFE"))()
 end)
 
-
+cmd.add({"macro"},{"macro","macro"},function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/Macro%20PL"))()
+end)
 
 NAStuff.NAundergroundState = NAStuff.NAundergroundState or {}
 NAStuff.NA_UNDERGROUND_BIND_NAME = NAStuff.NA_UNDERGROUND_BIND_NAME or "NAundergroundBind"
