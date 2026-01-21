@@ -5,7 +5,7 @@
     - Place in StarterPlayerScripts or StarterCharacterScripts.
 ]]
 
-local centerY = 654.981201171875 -- Floor height
+local centerY = 124.981201171875 -- Floor height
 local tileSize = 2048 -- Size of the part (studs)
 
 local floorPart = Instance.new("Part")
