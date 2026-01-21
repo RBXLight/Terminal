@@ -1,0 +1,339 @@
+-- ts file was generated at discord.gg/25ms
+-- Macro script fixed to properly switch tools (unequip previous then equip next)
+-- Handles original tools and clones from StarterPack/ReplicatedStorage safely.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPack = game:GetService("StarterPack")
+local _LocalPlayer4 = Players.LocalPlayer
+
+game:GetService('TweenService')
+game:GetService('RunService')
+
+task.spawn(function()
+	task.wait(0.2)
+end)
+
+local _call13 = Instance.new('ScreenGui')
+_call13.Name = 'TRXX_PV'
+_call13.ResetOnSpawn = false
+_call13.Parent = _LocalPlayer4:WaitForChild('PlayerGui')
+
+local _call17 = Instance.new('Frame')
+_call17.Size = UDim2.new(0, 380, 0, 420)
+_call17.Position = UDim2.new(0.5, -190, 0.5, -210)
+_call17.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+_call17.BorderSizePixel = 0
+_call17.Active = true
+_call17.Draggable = true
+_call17.Parent = _call13
+
+local _call25 = Instance.new('UICorner', _call17)
+_call25.CornerRadius = UDim.new(0, 12)
+
+local _call29 = Instance.new('UIStroke', _call17)
+_call29.Color = Color3.fromRGB(180, 40, 40)
+_call29.Thickness = 2
+
+local _call33 = Instance.new('Frame')
+_call33.Size = UDim2.new(1, 0, 0, 45)
+_call33.BackgroundColor3 = Color3.fromRGB(60, 15, 15)
+_call33.BorderSizePixel = 0
+_call33.Parent = _call17
+
+local _call39 = Instance.new('UICorner', _call33)
+_call39.CornerRadius = UDim.new(0, 12)
+
+local _call43 = Instance.new('TextLabel')
+_call43.Size = UDim2.new(1, -20, 1, 0)
+_call43.Position = UDim2.new(0, 10, 0, 0)
+_call43.BackgroundTransparency = 1
+_call43.Text = 'TRXX PV'
+_call43.Font = Enum.Font.Arcade
+_call43.TextSize = 24
+_call43.TextXAlignment = Enum.TextXAlignment.Left
+_call43.TextColor3 = Color3.fromRGB(255, 60, 60)
+_call43.Parent = _call33
+
+local _call55 = Instance.new('TextLabel')
+_call55.Size = UDim2.new(1, -20, 0, 30)
+_call55.Position = UDim2.new(0, 10, 0, 55)
+_call55.BackgroundTransparency = 1
+_call55.Text = 'Status: OFF | Selected: 0/3'
+_call55.Font = Enum.Font.Arcade
+_call55.TextSize = 14
+_call55.TextXAlignment = Enum.TextXAlignment.Left
+_call55.TextColor3 = Color3.fromRGB(255, 80, 80)
+_call55.Parent = _call17
+
+local _call67 = Instance.new('TextButton')
+_call67.Size = UDim2.new(1, -40, 0, 45)
+_call67.Position = UDim2.new(0, 20, 0, 95)
+_call67.BackgroundColor3 = Color3.fromRGB(60, 15, 15)
+_call67.Text = 'TOGGLE MACRO'
+_call67.Font = Enum.Font.Arcade
+_call67.TextSize = 16
+_call67.TextColor3 = Color3.fromRGB(255, 200, 200)
+_call67.Parent = _call17
+
+local _call79 = Instance.new('UICorner', _call67)
+_call79.CornerRadius = UDim.new(0, 8)
+
+local _call83 = Instance.new('Frame')
+_call83.Size = UDim2.new(1, -40, 0, 220)
+_call83.Position = UDim2.new(0, 20, 0, 150)
+_call83.BackgroundColor3 = Color3.fromRGB(25, 10, 10)
+_call83.BorderSizePixel = 0
+_call83.Parent = _call17
+
+local _call91 = Instance.new('UICorner', _call83)
+_call91.CornerRadius = UDim.new(0, 10)
+
+local _call95 = Instance.new('TextLabel')
+_call95.Size = UDim2.new(1, 0, 0, 30)
+_call95.BackgroundTransparency = 1
+_call95.Text = 'WEAPONS (MAX 3)'
+_call95.Font = Enum.Font.Arcade
+_call95.TextSize = 14
+_call95.TextColor3 = Color3.fromRGB(220, 160, 160)
+_call95.Parent = _call83
+
+local _call103 = Instance.new('ScrollingFrame')
+_call103.Size = UDim2.new(1, -10, 1, -40)
+_call103.Position = UDim2.new(0, 5, 0, 35)
+_call103.BackgroundTransparency = 1
+_call103.ScrollBarThickness = 6
+_call103.ScrollBarImageColor3 = Color3.fromRGB(180, 40, 40)
+_call103.Parent = _call83
+
+local _call111 = Instance.new('UIListLayout', _call103)
+_call111.Padding = UDim.new(0, 6)
+
+local function makeWeaponButton(text)
+	local btn = Instance.new('TextButton')
+	btn.Size = UDim2.new(1, -10, 0, 36)
+	btn.BackgroundColor3 = Color3.fromRGB(40, 15, 15)
+	btn.Text = text
+	btn.Font = Enum.Font.Arcade
+	btn.TextSize = 14
+	btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	btn.Parent = _call103
+	local cr = Instance.new('UICorner', btn)
+	cr.CornerRadius = UDim.new(0, 6)
+	return btn
+end
+
+local _call115 = makeWeaponButton("FAL")
+local _call134 = makeWeaponButton("M9")
+local _call152 = makeWeaponButton("Remington 870")
+local _call170 = makeWeaponButton("M4A1")
+local _call188 = makeWeaponButton("AK-47")
+local _call206 = makeWeaponButton("MP5")
+
+local _call228 = Instance.new('TextButton')
+_call228.Size = UDim2.new(0, 45, 0, 45)
+_call228.Position = UDim2.new(0, 20, 0.5, -22)
+_call228.BackgroundColor3 = Color3.fromRGB(60, 15, 15)
+_call228.Text = '\u{2261}'
+_call228.Font = Enum.Font.Arcade
+_call228.TextSize = 22
+_call228.TextColor3 = Color3.fromRGB(255, 80, 80)
+_call228.Parent = _call13
+
+local _call240 = Instance.new('UICorner', _call228)
+_call240.CornerRadius = UDim.new(1, 0)
+
+-- ==== Macro logic ====
+
+local macroActive = false
+local selectedWeapons = {} -- name -> true
+local maxSelect = 3
+local switchDelay = 0.09 -- seconds between equips (adjust to be faster/slower)
+local currentEquipping = nil
+local macroThread = nil
+
+-- track the last tool we created (clone) so we can destroy it on next switch
+local lastEquippedTool = nil
+local lastWasClone = false
+
+local function countSelected()
+	local c = 0
+	for _ in pairs(selectedWeapons) do c = c + 1 end
+	return c
+end
+
+local function updateStatus()
+	if macroActive then
+		if currentEquipping then
+			_call55.Text = string.format("Status: ON | Equipping: %s | Selected: %d/%d", currentEquipping, countSelected(), maxSelect)
+		else
+			_call55.Text = string.format("Status: ON | Selected: %d/%d", countSelected(), maxSelect)
+		end
+		_call55.TextColor3 = Color3.fromRGB(120, 255, 120)
+	else
+		_call55.Text = string.format("Status: OFF | Selected: %d/%d", countSelected(), maxSelect)
+		_call55.TextColor3 = Color3.fromRGB(255, 80, 80)
+	end
+end
+
+local function findToolByName(name)
+	-- Returns tool instance and source string
+	local player = _LocalPlayer4
+	local char = player.Character
+	if char then
+		local t = char:FindFirstChild(name)
+		if t and t:IsA("Tool") then return t, "Character" end
+	end
+	local back = player:FindFirstChild("Backpack")
+	if back then
+		local t = back:FindFirstChild(name)
+		if t and t:IsA("Tool") then return t, "Backpack" end
+	end
+	local t = StarterPack:FindFirstChild(name)
+	if t and t:IsA("Tool") then return t, "StarterPack" end
+	t = ReplicatedStorage:FindFirstChild(name)
+	if t and t:IsA("Tool") then return t, "ReplicatedStorage" end
+	return nil, nil
+end
+
+local function safeEquipByName(name)
+	local player = _LocalPlayer4
+	local char = player.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return false end
+
+	-- unequip current tools first to avoid having multiple equipped items
+	pcall(function() humanoid:UnequipTools() end)
+
+	-- remove last clone if it exists and is in Character or Backpack (we cloned it previously)
+	if lastEquippedTool and lastWasClone then
+		pcall(function()
+			-- If it's still in character/backpack, destroy it to avoid duplicates
+			if lastEquippedTool.Parent then
+				lastEquippedTool:Destroy()
+			end
+		end)
+		lastEquippedTool = nil
+		lastWasClone = false
+	end
+
+	local tool, source = findToolByName(name)
+	if not tool then
+		-- not found; nothing to equip
+		return false
+	end
+
+	-- If tool is in ReplicatedStorage or StarterPack we need to clone into Backpack/Character and equip the clone
+	if source == "ReplicatedStorage" or source == "StarterPack" then
+		local ok, res = pcall(function()
+			local clone = tool:Clone()
+			-- parent to Backpack first
+			local bp = player:FindFirstChild("Backpack")
+			if not bp then
+				clone.Parent = player -- fallback
+			else
+				clone.Parent = bp
+			end
+			-- small wait required before EquipTool in some environments
+			task.wait(0.03)
+			-- attempt to equip via Humanoid:EquipTool
+			humanoid:EquipTool(clone)
+			-- record that this was a clone so we can destroy it later
+			lastEquippedTool = clone
+			lastWasClone = true
+		end)
+		return ok
+	else
+		-- if tool is in Backpack or Character, just call EquipTool
+		local ok, res = pcall(function()
+			humanoid:EquipTool(tool)
+			lastEquippedTool = tool
+			lastWasClone = false
+		end)
+		return ok
+	end
+end
+
+local function toggleWeapon(button)
+	local name = button.Text
+	if selectedWeapons[name] then
+		selectedWeapons[name] = nil
+		button.BackgroundColor3 = Color3.fromRGB(40, 15, 15)
+	else
+		if countSelected() >= maxSelect then
+			local orig = button.BackgroundColor3
+			button.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+			delay(0.15, function()
+				if button and button.Parent then button.BackgroundColor3 = orig end
+			end)
+			return
+		end
+		selectedWeapons[name] = true
+		button.BackgroundColor3 = Color3.fromRGB(60, 90, 40)
+	end
+	updateStatus()
+end
+
+_call115.MouseButton1Click:Connect(function() toggleWeapon(_call115) end)
+_call134.MouseButton1Click:Connect(function() toggleWeapon(_call134) end)
+_call152.MouseButton1Click:Connect(function() toggleWeapon(_call152) end)
+_call170.MouseButton1Click:Connect(function() toggleWeapon(_call170) end)
+_call188.MouseButton1Click:Connect(function() toggleWeapon(_call188) end)
+_call206.MouseButton1Click:Connect(function() toggleWeapon(_call206) end)
+
+local function startMacro()
+	if macroThread then return end
+	macroThread = task.spawn(function()
+		while macroActive do
+			local names = {}
+			for name in pairs(selectedWeapons) do table.insert(names, name) end
+			table.sort(names)
+			if #names == 0 then
+				currentEquipping = nil
+				updateStatus()
+				task.wait(0.15)
+			else
+				for _, name in ipairs(names) do
+					if not macroActive then break end
+					currentEquipping = name
+					updateStatus()
+					pcall(function() safeEquipByName(name) end)
+					-- small delay to allow equip and for you to fire if needed (tweak to taste)
+					task.wait(switchDelay)
+				end
+				currentEquipping = nil
+			end
+			-- tiny pause between cycles
+			task.wait(0.02)
+		end
+		currentEquipping = nil
+		macroThread = nil
+		updateStatus()
+	end)
+end
+
+local function stopMacro()
+	macroActive = false
+end
+
+_call67.MouseButton1Click:Connect(function()
+	macroActive = not macroActive
+	if macroActive then
+		_call67.Text = "MACRO: ON"
+		_call67.TextColor3 = Color3.fromRGB(200, 255, 200)
+		startMacro()
+	else
+		_call67.Text = "TOGGLE MACRO"
+		_call67.TextColor3 = Color3.fromRGB(255, 200, 200)
+		stopMacro()
+	end
+	updateStatus()
+end)
+
+_call228.MouseButton1Click:Connect(function()
+	_call17.Visible = not _call17.Visible
+end)
+
+updateStatus()
+
+print('TRXX PV Loaded | Macro ready | Red & Black (switching cleanup)')
