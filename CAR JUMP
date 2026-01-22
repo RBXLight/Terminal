@@ -1,0 +1,51 @@
+-- Car Jump Script + Forward Speed Boost
+-- LeftAlt = Jump + push car forward in facing direction
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+local JUMP_FORCE = 120      -- upward jump power
+local FORWARD_BOOST = 80    -- forward speed added
+
+local function getVehicleSeat()
+	local character = player.Character
+	if not character then return nil end
+	
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return nil end
+	
+	local seat = humanoid.SeatPart
+	if seat and seat:IsA("VehicleSeat") then
+		return seat
+	end
+	
+	return nil
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if input.KeyCode == Enum.KeyCode.LeftAlt then
+		local seat = getVehicleSeat()
+		if not seat then return end
+		
+		local car = seat.Parent
+		local root = car:FindFirstChild("PrimaryPart") or car:FindFirstChildWhichIsA("BasePart")
+		if not root then return end
+		
+		-- current velocity
+		local vel = root.AssemblyLinearVelocity
+		
+		-- forward direction of the car
+		local forward = root.CFrame.LookVector
+		
+		-- add upward + forward velocity
+		root.AssemblyLinearVelocity = Vector3.new(
+			vel.X + forward.X * FORWARD_BOOST,
+			JUMP_FORCE,
+			vel.Z + forward.Z * FORWARD_BOOST
+		)
+	end
+end)
