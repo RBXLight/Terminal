@@ -1,0 +1,344 @@
+-- ts file was generated at discord.gg/25ms
+
+local _LocalPlayer3 = game.Players.LocalPlayer
+
+_LocalPlayer3:GetMouse()
+
+local _workspaceCurrentCamera6 = workspace.CurrentCamera
+local _call8 = Instance.new('ScreenGui')
+local _call10 = Instance.new('Frame')
+local _call12 = Instance.new('TextLabel')
+local _call14 = Instance.new('TextButton')
+
+_call8.Parent = game.Players.LocalPlayer.PlayerGui
+_call10.Parent = _call8
+_call10.Size = UDim2.new(0, 200, 0, 100)
+_call10.Position = UDim2.new(0.5, -100, 0.5, -50)
+_call10.BackgroundColor3 = Color3.new(1, 1, 1)
+_call10.Active = true
+_call10.Draggable = true
+_call12.Parent = _call10
+_call12.Size = UDim2.new(1, 0, 0.5, 0)
+_call12.Position = UDim2.new(0, 0, 0, 0)
+_call12.BackgroundColor3 = Color3.new(0, 0, 0)
+_call12.Text = 'YT: Xploonir'
+_call12.TextColor3 = Color3.new(1, 1, 1)
+_call14.Parent = _call10
+_call14.Size = UDim2.new(1, 0, 0.5, 0)
+_call14.Position = UDim2.new(0, 0, 0.5, 0)
+_call14.Text = 'Off'
+_call14.BackgroundColor3 = Color3.new(1, 0, 0)
+
+local _Character38 = _LocalPlayer3.Character
+local _call40 = _Character38:WaitForChild('HumanoidRootPart')
+
+_call14.MouseButton1Click:Connect(function(...)
+    _call14.Text = 'On'
+    _call14.BackgroundColor3 = Color3.new(0, 1, 0)
+
+    local _Position58 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position58:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position87 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position87:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position116 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position116:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position145 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position145:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position174 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position174:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position203 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position203:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position232 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position232:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position261 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position261:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position290 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position290:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position319 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position319:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position348 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position348:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position377 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position377:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position406 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position406:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position435 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position435:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position464 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position464:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position493 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position493:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position522 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position522:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position551 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position551:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(-20, 0, 0))
+
+    wait(0.01)
+
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _Position580 = _workspaceCurrentCamera6.CFrame.Position
+
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Scriptable
+    _workspaceCurrentCamera6.CFrame = CFrame.new(_Position580:Lerp(((_call40.Position - (_call40.CFrame.lookVector * 15)) + Vector3.new(0, 5, 0)), 0.1), _call40.Position)
+    _call40.CFrame = (_call40.CFrame * CFrame.new(10, 0, 0))
+
+    wait(0.01)
+
+    local _ = _call40.CFrame
+    local _ = CFrame.new
+
+    error('internal 550: <25ms: infinitelooperror>')
+end)
+_Character38:WaitForChild('Humanoid').Died:Connect(function(...)
+    _call14.Text = 'Off'
+    _call14.BackgroundColor3 = Color3.new(1, 0, 0)
+    _workspaceCurrentCamera6.CameraType = Enum.CameraType.Custom
+end)
