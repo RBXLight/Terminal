@@ -1,40 +1,92 @@
---[[
-    Client-Sided Infinite Floor with Collision
-    - Only one part, always under the player.
-    - CanCollide = true so you can stand and drive on it.
-    - Place in StarterPlayerScripts or StarterCharacterScripts.
-]]
+-- LocalScript only!
 
-local centerY = 124.981201171875 -- Floor height
-local tileSize = 2048 -- Size of the part (studs)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local floorPart = Instance.new("Part")
-floorPart.Name = "UltraEfficientClientFloor"
-floorPart.Anchored = true
-floorPart.CanCollide = true -- <-- COLLISION ENABLED!
-floorPart.Transparency = 0.1
-floorPart.Color = Color3.fromRGB(120, 120, 120)
-floorPart.Size = Vector3.new(tileSize, 1, tileSize)
-floorPart.Parent = workspace
+local player = Players.LocalPlayer
+if not player then
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    player = Players.LocalPlayer
+end
+
+local centerY = 124.981201171875
+local tileSize = 2048
+
+local floorPart
+local renderConnection
+local arenaEnabled = false
+
 
 local function getPlayerPosition()
-    local plr = game.Players.LocalPlayer
-    local char = plr.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        return char.HumanoidRootPart.Position
+    local char = player.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            return hrp.Position
+        end
     end
     return nil
 end
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    local pos = getPlayerPosition()
-    if not pos then return end
 
-    -- Snap to nearest tile center for seamless look
-    local snappedX = math.floor(pos.X / tileSize + 0.5) * tileSize
-    local snappedZ = math.floor(pos.Z / tileSize + 0.5) * tileSize
+local function createArena()
+    if floorPart then return end
 
-    floorPart.Position = Vector3.new(snappedX, centerY, snappedZ)
+    floorPart = Instance.new("Part")
+    floorPart.Name = "UltraEfficientClientFloor"
+    floorPart.Anchored = true
+    floorPart.CanCollide = true
+    floorPart.Transparency = 0.1
+    floorPart.Color = Color3.fromRGB(120,120,120)
+    floorPart.Size = Vector3.new(tileSize, 1, tileSize)
+    floorPart.Parent = workspace
+
+    renderConnection = RunService.RenderStepped:Connect(function()
+        local pos = getPlayerPosition()
+        if not pos then return end
+
+        local snappedX = math.floor(pos.X / tileSize + 0.5) * tileSize
+        local snappedZ = math.floor(pos.Z / tileSize + 0.5) * tileSize
+
+        floorPart.Position = Vector3.new(snappedX, centerY, snappedZ)
+    end)
+
+    print("Arena ENABLED")
+end
+
+
+local function destroyArena()
+    if renderConnection then
+        renderConnection:Disconnect()
+        renderConnection = nil
+    end
+
+    if floorPart then
+        floorPart:Destroy()
+        floorPart = nil
+    end
+
+    print("Arena DISABLED")
+end
+
+
+local function toggleArena()
+    arenaEnabled = not arenaEnabled
+    if arenaEnabled then
+        createArena()
+    else
+        destroyArena()
+    end
+end
+
+
+-- Press T to toggle
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        toggleArena()
+    end
 end)
 
-print("Ultra-efficient infinite collidable floor running!")
+print("Toggleable arena loaded — Press T")
