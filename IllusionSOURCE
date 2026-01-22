@@ -1,0 +1,347 @@
+-- Advanced client-only "6-illusion" localscript
+-- Toggles a continuous, fast hopping illusion of your character around a target player.
+-- WARNING: This is client-only. Whether others see it smoothly depends on the game's server-side movement validation.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- Config (tweak for faster/slower / more/less jitter)
+local NUM_POS = 6                -- number of distinct positions (six illusions)
+local STEP_INTERVAL = 0.03       -- seconds between teleports (smaller = faster)
+local RADIUS = 5.5               -- base radius around target (how far illusions are)
+local Y_JITTER = 1.2             -- vertical jitter amplitude
+local XY_JITTER = 1.2            -- XY jitter amplitude
+local RETURN_ON_STOP = true      -- return to original CFrame when stopping
+local KEEP_PLATFORM_STAND = true -- set PlatformStand while illusion runs (try to reduce physics interference)
+
+-- UI build (minimal but functional)
+local function createGui()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "IllusionGui_Advanced"
+    gui.ResetOnSpawn = false
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 220, 0, 112)
+    frame.Position = UDim2.new(0.5, -110, 0.5, -56)
+    frame.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, -88, 0, 22)
+    title.Position = UDim2.new(0, 8, 0, 6)
+    title.BackgroundTransparency = 1
+    title.Text = "ADVANCED ILLUSION"
+    title.TextColor3 = Color3.fromRGB(240,240,240)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    local peopleBtn = Instance.new("TextButton", frame)
+    peopleBtn.Size = UDim2.new(0, 28, 0, 22)
+    peopleBtn.Position = UDim2.new(1, -62, 0, 6)
+    peopleBtn.Text = "👥"
+    peopleBtn.Font = Enum.Font.Gotham
+    peopleBtn.TextSize = 14
+    peopleBtn.Name = "PeopleBtn"
+
+    local closeBtn = Instance.new("TextButton", frame)
+    closeBtn.Size = UDim2.new(0, 28, 0, 22)
+    closeBtn.Position = UDim2.new(1, -30, 0, 6)
+    closeBtn.Text = "X"
+    closeBtn.Font = Enum.Font.Gotham
+    closeBtn.TextSize = 14
+    closeBtn.Name = "CloseBtn"
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1, -16, 0, 16)
+    label.Position = UDim2.new(0, 8, 0, 36)
+    label.BackgroundTransparency = 1
+    label.Text = "Player Name:"
+    label.TextColor3 = Color3.fromRGB(220,220,220)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local textBox = Instance.new("TextBox", frame)
+    textBox.Size = UDim2.new(1, -16, 0, 30)
+    textBox.Position = UDim2.new(0, 8, 0, 54)
+    textBox.Text = ""
+    textBox.PlaceholderText = "Enter player name"
+    textBox.Font = Enum.Font.Gotham
+    textBox.TextSize = 14
+    textBox.TextColor3 = Color3.new(1,1,1)
+    textBox.BackgroundColor3 = Color3.fromRGB(42,42,42)
+    textBox.ClearTextOnFocus = false
+    textBox.Name = "TargetBox"
+
+    local startBtn = Instance.new("TextButton", frame)
+    startBtn.Size = UDim2.new(1, -16, 0, 24)
+    startBtn.Position = UDim2.new(0, 8, 1, -30)
+    startBtn.Text = "START ILLUSION"
+    startBtn.Font = Enum.Font.GothamBold
+    startBtn.TextSize = 14
+    startBtn.BackgroundColor3 = Color3.fromRGB(70,200,80)
+    startBtn.TextColor3 = Color3.new(1,1,1)
+    startBtn.Name = "StartBtn"
+
+    return {
+        Gui = gui,
+        Frame = frame,
+        PeopleBtn = peopleBtn,
+        CloseBtn = closeBtn,
+        TextBox = textBox,
+        StartBtn = startBtn,
+    }
+end
+
+local ui = createGui()
+
+-- Utility: find nearest player to local
+local function findNearestPlayer()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+
+    local best, bestDist = nil, math.huge
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            if dist < bestDist then
+                bestDist = dist
+                best = p
+            end
+        end
+    end
+    return best, bestDist
+end
+
+-- People button behavior: copy nearest player's name
+ui.PeopleBtn.MouseButton1Click:Connect(function()
+    local nearest = findNearestPlayer()
+    if nearest then
+        ui.TextBox.Text = nearest.Name
+        ui.PeopleBtn.Text = "✓"
+        ui.PeopleBtn.BackgroundColor3 = Color3.fromRGB(200,80,80)
+        task.delay(0.9, function()
+            if ui.PeopleBtn and ui.PeopleBtn.Parent then
+                ui.PeopleBtn.Text = "👥"
+                ui.PeopleBtn.BackgroundColor3 = Color3.fromRGB(70,130,200)
+            end
+        end)
+    else
+        ui.PeopleBtn.Text = "No"
+        task.delay(1, function()
+            if ui.PeopleBtn and ui.PeopleBtn.Parent then
+                ui.PeopleBtn.Text = "👥"
+            end
+        end)
+    end
+end)
+
+ui.CloseBtn.MouseButton1Click:Connect(function()
+    if ui.Gui and ui.Gui.Parent then ui.Gui:Destroy() end
+end)
+
+-- Internal state
+local illusionRunning = false
+local illusionConn -- heartbeat connection
+local stopRequested = false
+local originalCFrame, originalPlatformStand
+
+-- Create time-varying offsets for the NUM_POS positions. We rotate them over time
+local function computePositionsAround(targetPos, t)
+    local positions = {}
+    for i = 1, NUM_POS do
+        -- base angle for this slot
+        local angle = (2 * math.pi) * ((i - 1) / NUM_POS)
+        -- add rotation over time so positions sweep
+        local sweep = t * 6.0 -- how fast the ring spins (tweak)
+        local ang = angle + sweep
+        local base = Vector3.new(math.cos(ang) * RADIUS, 0, math.sin(ang) * RADIUS)
+        -- jitter per-index using sin/cos + small random noise to create messy paths
+        local jitter = Vector3.new(
+            (math.sin(t*8 + i*1.37) * 0.6 + (math.noise(i, t*4) - 0.5) * XY_JITTER),
+            (math.sin(t*10 + i*0.73) * 0.35 + (math.noise(i*2, t*3) - 0.5) * Y_JITTER),
+            (math.cos(t*7 + i*1.21) * 0.6 + (math.noise(i*3, t*2) - 0.5) * XY_JITTER)
+        )
+        table.insert(positions, targetPos + base + jitter)
+    end
+    return positions
+end
+
+-- Main illusion runner
+local function startIllusion(targetPlayer)
+    if illusionRunning then return end
+    if not targetPlayer or not targetPlayer.Character then return end
+    local targetHrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetHrp then return end
+
+    -- ensure local character exists
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChild("Humanoid")
+    if not hrp or not hum then return end
+
+    -- Save original state for restore
+    originalCFrame = hrp.CFrame
+    originalPlatformStand = hum.PlatformStand
+
+    if KEEP_PLATFORM_STAND then
+        hum.PlatformStand = true
+    end
+
+    illusionRunning = true
+    stopRequested = false
+
+    -- We'll cycle through the NUM_POS slots quickly. Use index step each time interval.
+    local slot = 1
+    local acc = 0
+    local startTime = tick()
+
+    -- Heartbeat connection does the teleporting
+    illusionConn = RunService.Heartbeat:Connect(function(dt)
+        if stopRequested then
+            -- cleanup outside event to avoid race in the event connection
+            return
+        end
+
+        -- validate target still exists
+        if not targetPlayer or not targetPlayer.Parent or not targetPlayer.Character then
+            stopRequested = true
+            return
+        end
+        local tgtHrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not tgtHrp then
+            stopRequested = true
+            return
+        end
+
+        acc = acc + dt
+        if acc < STEP_INTERVAL then
+            return
+        end
+        acc = acc - STEP_INTERVAL
+
+        local t = tick() - startTime
+        local positions = computePositionsAround(tgtHrp.Position, t)
+
+        -- pick slot (we step every tick so slot changes fast, producing multiple perceived bodies)
+        slot = slot % #positions + 1
+        local dest = positions[slot]
+
+        -- Build a CFrame looking at the target so orientation feels natural
+        local look = CFrame.new(dest, tgtHrp.Position)
+
+        -- Attempt to set CFrame; wrap in pcall for safety
+        local ok, err = pcall(function()
+            hrp.CFrame = look
+        end)
+        if not ok then
+            -- if assignment fails, stop the illusion gracefully
+            warn("Illusion set CFrame failed:", err)
+            stopRequested = true
+            return
+        end
+    end)
+
+    -- Wait loop until stopRequested is set, then cleanup
+    coroutine.wrap(function()
+        while not stopRequested do
+            task.wait(0.1)
+        end
+
+        -- disconnect heartbeat
+        if illusionConn then
+            illusionConn:Disconnect()
+            illusionConn = nil
+        end
+
+        -- restore state and return to original CFrame
+        if RETURN_ON_STOP and originalCFrame then
+            pcall(function()
+                hrp.CFrame = originalCFrame
+            end)
+        end
+        if hum and KEEP_PLATFORM_STAND then
+            pcall(function() hum.PlatformStand = originalPlatformStand end)
+        end
+
+        illusionRunning = false
+        stopRequested = false
+    end)()
+end
+
+local function stopIllusion()
+    if not illusionRunning then return end
+    stopRequested = true
+end
+
+-- Start/Stop button
+ui.StartBtn.MouseButton1Click:Connect(function()
+    if illusionRunning then
+        ui.StartBtn.Text = "STOPPING..."
+        ui.StartBtn.BackgroundColor3 = Color3.fromRGB(200,80,80)
+        stopIllusion()
+        task.delay(0.6, function()
+            if ui.StartBtn then
+                ui.StartBtn.Text = "START ILLUSION"
+                ui.StartBtn.BackgroundColor3 = Color3.fromRGB(70,200,80)
+            end
+        end)
+    else
+        local name = ui.TextBox.Text and ui.TextBox.Text:match("%S+")
+        if not name or name == "" then
+            ui.StartBtn.Text = "ENTER NAME!"
+            task.wait(1)
+            ui.StartBtn.Text = "START ILLUSION"
+            return
+        end
+        local target = Players:FindFirstChild(name)
+        if not target then
+            ui.StartBtn.Text = "NOT FOUND"
+            task.wait(1)
+            ui.StartBtn.Text = "START ILLUSION"
+            return
+        end
+        ui.StartBtn.Text = "RUNNING..."
+        ui.StartBtn.BackgroundColor3 = Color3.fromRGB(200,160,60)
+        startIllusion(target)
+    end
+end)
+
+-- Pressing Enter in textbox triggers start
+ui.TextBox.FocusLost:Connect(function(pressedEnter)
+    if pressedEnter then
+        ui.StartBtn:Activate() -- emulate click
+    end
+end)
+
+-- Stop illusion on death / respawn
+LocalPlayer.CharacterAdded:Connect(function(character)
+    -- if illusion was running and the local player respawns, stop it
+    if illusionRunning then
+        stopIllusion()
+    end
+end)
+
+-- Optional keybind: toggle illusion with a key (e.g., "K")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.K then
+        -- quick toggle: copy nearest player and start/stop
+        local nearest = findNearestPlayer()
+        if nearest then
+            ui.TextBox.Text = nearest.Name
+            ui.StartBtn:Activate()
+        end
+    end
+end)
+
+print("[Advanced Illusion] client script loaded")
