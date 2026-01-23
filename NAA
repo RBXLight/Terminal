@@ -18854,6 +18854,12 @@ cmd.add({"ARR"},{"ARR","Auto Respawn"},function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/e2f2fa7de4fb162637d2efe6de9acf501b9c2da5/GGGG"))()
 end)
 
+cmd.add({"carj"},{"carj","Car Jump LEFT ALT"},function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/CAR%20JUMP"))()
+end)
+
+
+
 cmd.add({"animstab"},{"animstab","animstab"},function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/AnimationTAB"))()
 end)
