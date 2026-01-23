@@ -823,6 +823,175 @@ do
 	end)
 end
 
+do
+    local arrestAuraEnabled = false
+    local arrestAuraConn = nil
+    local arrestRemote = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("ArrestPlayer")
+    local RANGE = 10
+
+    -- Logic Function
+    local function arrestAuraHandler()
+        if not arrestAuraEnabled then return end
+        
+        local me = game.Players.LocalPlayer
+        local root = me.Character and me.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        for _, plr in game.Players:GetPlayers() do
+            if plr == me then continue end
+            local char = plr.Character
+            if not char then continue end
+            
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChild("Humanoid")
+            
+            -- Checks: Part existence, Health, and Distance
+            if hrp and hum and hum.Health > 0 then
+                if (root.Position - hrp.Position).Magnitude <= RANGE then
+                    task.spawn(function()
+                        pcall(function()
+                            arrestRemote:InvokeServer(plr)
+                        end)
+                    end)
+                end
+            end
+        end
+    end
+
+    -- UI Elements
+    local AASection = New("Frame", {
+        Parent = LocalScroll, Size = UDim2.new(1, -8, 0, 70), 
+        BackgroundColor3 = ActiveTheme.Panel, BorderSizePixel = 0
+    })
+    New("UICorner", {Parent = AASection, CornerRadius = UDim.new(0, 12)})
+
+    local AATitle = New("TextLabel", {
+        Parent = AASection, Position = UDim2.new(0, 12, 0, 6),
+        Size = UDim2.new(1, -24, 0, 18), Text = "Arrest Aura", 
+        Font = Enum.Font.GothamSemibold, TextSize = 13, 
+        TextColor3 = ActiveTheme.Text, BackgroundTransparency = 1, 
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+
+    local AAToggle = New("TextButton", {
+        Parent = AASection, Position = UDim2.new(1, -72, 0, 6),
+        Size = UDim2.new(0, 56, 0, 20), Text = "OFF",
+        Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = ActiveTheme.Text,
+        BackgroundColor3 = OFF_COLOR, BorderSizePixel = 0, AutoButtonColor = false
+    })
+    New("UICorner", {Parent = AAToggle, CornerRadius = UDim.new(0, 6)})
+
+    -- Visual Update
+    local function updateAAVisual()
+        if arrestAuraEnabled then
+            AAToggle.Text = "ON"
+            AAToggle.BackgroundColor3 = ON_COLOR
+        else
+            AAToggle.Text = "OFF"
+            AAToggle.BackgroundColor3 = OFF_COLOR
+        end
+    end
+
+    -- Toggle Connection
+    AAToggle.MouseButton1Click:Connect(function()
+        arrestAuraEnabled = not arrestAuraEnabled
+        updateAAVisual()
+        
+        if arrestAuraEnabled then
+            if not arrestAuraConn then
+                -- Connect to Heartbeat for constant checking while ON
+                arrestAuraConn = game:GetService("RunService").Heartbeat:Connect(arrestAuraHandler)
+            end
+        else
+            if arrestAuraConn then
+                arrestAuraConn:Disconnect()
+                arrestAuraConn = nil
+            end
+        end
+    end)
+end
+
+do
+    local noclipEnabled = false
+    local noclipConn = nil
+
+    -- The Noclip Loop Logic
+    local function noclipHandler()
+        if not noclipEnabled or not LocalPlayer.Character then return end
+        
+        for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
+            -- Ensures parts that should be collidable (like a 'float' platform) stay solid
+            if child:IsA("BasePart") and child.CanCollide == true and child.Name ~= (floatName or "") then
+                child.CanCollide = false
+            end
+        end
+    end
+
+    -- UI Elements
+    local NCSection = New("Frame", {
+        Parent = LocalScroll, Size = UDim2.new(1, -8, 0, 70), 
+        BackgroundColor3 = ActiveTheme.Panel, BorderSizePixel = 0
+    })
+    New("UICorner", {Parent = NCSection, CornerRadius = UDim.new(0, 12)})
+
+    local NCTitle = New("TextLabel", {
+        Parent = NCSection, Position = UDim2.new(0, 12, 0, 6),
+        Size = UDim2.new(1, -24, 0, 18), Text = "Noclip", 
+        Font = Enum.Font.GothamSemibold, TextSize = 13, 
+        TextColor3 = ActiveTheme.Text, BackgroundTransparency = 1, 
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+
+    local NCToggle = New("TextButton", {
+        Parent = NCSection, Position = UDim2.new(1, -72, 0, 6),
+        Size = UDim2.new(0, 56, 0, 20), Text = "OFF",
+        Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = ActiveTheme.Text,
+        BackgroundColor3 = OFF_COLOR, BorderSizePixel = 0, AutoButtonColor = false
+    })
+    New("UICorner", {Parent = NCToggle, CornerRadius = UDim.new(0, 6)})
+
+    -- Visual Update
+    local function updateNCVisual()
+        if noclipEnabled then
+            NCToggle.Text = "ON"
+            NCToggle.BackgroundColor3 = ON_COLOR
+        else
+            NCToggle.Text = "OFF"
+            NCToggle.BackgroundColor3 = OFF_COLOR
+        end
+    end
+
+    -- Toggle Logic (The Clip/Noclip Switch)
+    NCToggle.MouseButton1Click:Connect(function()
+        noclipEnabled = not noclipEnabled
+        updateNCVisual()
+        
+        if noclipEnabled then
+            -- Activate Noclip
+            if not noclipConn then
+                noclipConn = game:GetService("RunService").Stepped:Connect(noclipHandler)
+            end
+        else
+            -- Deactivate Noclip (The "Clip" function)
+            if noclipConn then
+                noclipConn:Disconnect()
+                noclipConn = nil
+            end
+            
+            -- Force character parts back to collidable immediately
+            if LocalPlayer.Character then
+                for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if child:IsA("BasePart") then
+                        child.CanCollide = true
+                    end
+                end
+            end
+        end
+    end)
+end
+
+
+
 -----------------------------
 -- PLAYERS TAB (selector + bang) (kept as before)
 -- Added: View, Teleport, Headstand, Arm Hold, Annoy features
