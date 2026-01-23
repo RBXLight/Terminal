@@ -1,0 +1,253 @@
+
+
+function createHugTool()
+    local _Tool = Instance.new('Tool')
+
+    _Tool.Name = 'Back Hug'
+    _Tool.RequiresHandle = false
+    _Tool.ToolTip = 'Made By @ExploitFin'
+    _Tool.Parent = game.Players.LocalPlayer.Backpack
+
+    local _Animation = Instance.new('Animation')
+
+    _Animation.AnimationId = 'rbxassetid://283545583'
+
+    local _Animation2 = Instance.new('Animation')
+
+    _Animation2.AnimationId = 'rbxassetid://225975820'
+
+    local u4 = false
+    local u5 = nil
+    local u6 = {}
+
+    local function u11(_)
+        u4 = false
+
+        if u5 then
+            u5:Disconnect()
+
+            u5 = nil
+        end
+
+        local v7, v8, v9 = ipairs(u6)
+
+        while true do
+            local v10
+
+            v9, v10 = v7(v8, v9)
+
+            if v9 == nil then
+                break
+            end
+
+            v10:Stop()
+        end
+
+        u6 = {}
+    end
+
+    _Tool.Activated:Connect(function()
+        local _LocalPlayer = game.Players.LocalPlayer
+        local v13 = _LocalPlayer.Character or _LocalPlayer.CharacterAdded:Wait()
+        local _Humanoid = v13:FindFirstChild('Humanoid')
+        local _Target = _LocalPlayer:GetMouse().Target
+
+        if _Humanoid then
+            local v16 = _Target and (_Target.Parent:FindFirstChild('Humanoid') and game.Players:GetPlayerFromCharacter(_Target.Parent))
+
+            if v16 then
+                local _Character = v16.Character
+
+                if _Character and (_Character:FindFirstChild('HumanoidRootPart') and v13:FindFirstChild('HumanoidRootPart')) then
+                    local _HumanoidRootPart = _Character.HumanoidRootPart
+                    local _HumanoidRootPart2 = v13.HumanoidRootPart
+
+                    if u4 then
+                        u11(_Humanoid)
+                    end
+
+                    u4 = true
+
+                    local v20 = _Humanoid:LoadAnimation(_Animation)
+                    local v21 = _Humanoid:LoadAnimation(_Animation2)
+
+                    v20:Play()
+                    v21:Play()
+                    table.insert(u6, v20)
+                    table.insert(u6, v21)
+
+                    u5 = game:GetService('RunService').RenderStepped:Connect(function()
+                        if _HumanoidRootPart and _HumanoidRootPart2 then
+                            _HumanoidRootPart2.CFrame = _HumanoidRootPart.CFrame * CFrame.Angles(0, math.pi * 2, 0) * CFrame.new(0, 0, 1.5)
+                        end
+                    end)
+
+                    v20.Stopped:Connect(function()
+                        u11(_Humanoid)
+                    end)
+                    v21.Stopped:Connect(function()
+                        u11(_Humanoid)
+                    end)
+                end
+            end
+        end
+    end)
+    _Tool.Unequipped:Connect(function()
+        local _LocalPlayer2 = game.Players.LocalPlayer
+        local _Humanoid2 = (_LocalPlayer2.Character or _LocalPlayer2.CharacterAdded:Wait()):FindFirstChild('Humanoid')
+
+        if u4 then
+            u11(_Humanoid2)
+        end
+    end)
+    game.Players.LocalPlayer.CharacterAdded:Connect(function()
+        _Tool.Parent = game.Players.LocalPlayer.Backpack
+    end)
+end
+function fronthug()
+    local _Tool2 = Instance.new('Tool')
+
+    _Tool2.Name = 'Front Hug'
+    _Tool2.RequiresHandle = false
+    _Tool2.ToolTip = 'Made By @ExploitFin'
+    _Tool2.Parent = game.Players.LocalPlayer.Backpack
+
+    local _Animation3 = Instance.new('Animation')
+
+    _Animation3.AnimationId = 'rbxassetid://283545583'
+
+    local _Animation4 = Instance.new('Animation')
+
+    _Animation4.AnimationId = 'rbxassetid://225975820'
+
+    local u27 = false
+    local u28 = nil
+    local u29 = {}
+
+    local function u34(_)
+        u27 = false
+
+        if u28 then
+            u28:Disconnect()
+
+            u28 = nil
+        end
+
+        local v30, v31, v32 = ipairs(u29)
+
+        while true do
+            local v33
+
+            v32, v33 = v30(v31, v32)
+
+            if v32 == nil then
+                break
+            end
+
+            v33:Stop()
+        end
+
+        u29 = {}
+    end
+
+    _Tool2.Activated:Connect(function()
+        local _LocalPlayer3 = game.Players.LocalPlayer
+        local v36 = _LocalPlayer3.Character or _LocalPlayer3.CharacterAdded:Wait()
+        local _Humanoid3 = v36:FindFirstChild('Humanoid')
+        local _Target2 = _LocalPlayer3:GetMouse().Target
+
+        if _Humanoid3 then
+            local v39 = _Target2 and (_Target2.Parent:FindFirstChild('Humanoid') and game.Players:GetPlayerFromCharacter(_Target2.Parent))
+
+            if v39 then
+                local _Character2 = v39.Character
+
+                if _Character2 and (_Character2:FindFirstChild('HumanoidRootPart') and v36:FindFirstChild('HumanoidRootPart')) then
+                    local _HumanoidRootPart3 = _Character2.HumanoidRootPart
+                    local _HumanoidRootPart4 = v36.HumanoidRootPart
+
+                    if u27 then
+                        u34(_Humanoid3)
+                    end
+
+                    u27 = true
+
+                    local v43 = _Humanoid3:LoadAnimation(_Animation3)
+                    local v44 = _Humanoid3:LoadAnimation(_Animation4)
+
+                    v43:Play()
+                    v44:Play()
+                    table.insert(u29, v43)
+                    table.insert(u29, v44)
+
+                    u28 = game:GetService('RunService').RenderStepped:Connect(function()
+                        if _HumanoidRootPart3 and _HumanoidRootPart4 then
+                            _HumanoidRootPart4.CFrame = _HumanoidRootPart3.CFrame * CFrame.new(0, 0, -2) * CFrame.Angles(0, math.pi, 0)
+                        end
+                    end)
+
+                    v43.Stopped:Connect(function()
+                        u34(_Humanoid3)
+                    end)
+                    v44.Stopped:Connect(function()
+                        u34(_Humanoid3)
+                    end)
+                end
+            end
+        end
+    end)
+    _Tool2.Unequipped:Connect(function()
+        local _LocalPlayer4 = game.Players.LocalPlayer
+        local _Humanoid4 = (_LocalPlayer4.Character or _LocalPlayer4.CharacterAdded:Wait()):FindFirstChild('Humanoid')
+
+        if u27 then
+            u34(_Humanoid4)
+        end
+    end)
+    game.Players.LocalPlayer.CharacterAdded:Connect(function()
+        _Tool2.Parent = game.Players.LocalPlayer.Backpack
+    end)
+end
+
+local v47, v48 = pcall(function()
+    setclipboard('https://discord.gg/GzQGE9rr26')
+end)
+
+if not v47 then
+    print('oh no.. i failed to copy to clipboard: ' .. tostring(v48))
+end
+
+local v50 = u49
+
+
+
+function r15()
+    u49:Notify('You have to be r6 dummy', {
+        {
+            Text = 'Sigh..',
+            Callback = function()
+                print([[
+
+
+_______      ___    ___ ________  ___       ________  ___  _________  ________ ___  ________      
+|\  ___ \    |\  \  /  /|\   __  \|\  \     |\   __  \|\  \|\___   ___\\  _____\\  \|\   ___  \    
+\ \   __/|   \ \  \/  / | \  \|\  \ \  \    \ \  \|\  \ \  \|___ \  \_\ \  \__/\ \  \ \  \\ \  \   
+ \ \  \_|/__  \ \    / / \ \   ____\ \  \    \ \  \\\  \ \  \   \ \  \ \ \   __\\ \  \ \  \\ \  \  
+  \ \  \_|\ \  /     \/   \ \  \___|\ \  \____\ \  \\\  \ \  \   \ \  \ \ \  \_| \ \  \ \  \\ \  \ 
+   \ \_______\/  /\   \    \ \__\    \ \_______\ \_______\ \__\   \ \__\ \ \__\   \ \__\ \__\\ \__\
+    \|_______/__/ /\ __\    \|__|     \|_______|\|_______|\|__|    \|__|  \|__|    \|__|\|__| \|__|
+             |__|/ \|__| 
+]])
+            end,
+        },
+    }, 0.5, true)
+end
+
+local _LocalPlayer5 = game.Players.LocalPlayer
+
+if (_LocalPlayer5.Character or _LocalPlayer5.CharacterAdded:Wait()):WaitForChild('Humanoid').RigType ~= Enum.HumanoidRigType.R15 then
+    createHugTool()
+    fronthug()
+else
+    r15()
+end
