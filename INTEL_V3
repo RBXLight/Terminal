@@ -1173,7 +1173,7 @@ do
 		{"NA","https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/NAA"},
 		{"HookSync","https://raw.githubusercontent.com/sadfgsdafgsd32-oss/RBLX/refs/heads/main/HookSync"},
 		{"PrizzLife","https://raw.githubusercontent.com/sadfgsdafgsd32-oss/RBLX/refs/heads/main/PL%200.8.2"},
-    {"Hug Tools"," https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/HUGTOOLS"}
+    {"Hug Tools","https://raw.githubusercontent.com/RBXLight/Terminal/refs/heads/main/HUGTOOLS"}
 	}
 
 	for i,s in ipairs(Scripts) do
