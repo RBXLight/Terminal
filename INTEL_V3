@@ -538,6 +538,7 @@ do
 		{"Legs Crossed", "182724289"},
 		{"Hero Slash", "184574340"},
 		{"Float", "181526230"},
+		{"Robot Dance", "40974665"},
 		{"Faint", "181525546"},
 		{"Insane Arms", "27432691"},
 		{"Classic Ballet", "429730430"},
@@ -2005,6 +2006,307 @@ end
 -- CAR JUMP + ARENA (new features as toggles)
 -----------------------------
 do
+
+-- Apple‑Style Soft UI Vehicle Speed Panel (Final Version With Hold‑F Input)
+-- Dots at TOP‑RIGHT above F & S, no background, gold F button, smaller UI
+-- Fully integrated with your vehicle impulse logic + custom speed input
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.Name = "AppleSoftVehicleUI"
+
+---------------------------------------------------------------------
+-- VEHICLE SPEED LOGIC (YOUR ORIGINAL LOGIC)
+---------------------------------------------------------------------
+
+local vehicleLoop = nil
+local currentIntensity = 0
+local defaultIntensity = 0
+
+local function applyVehicleSpeed(intensity)
+	if vehicleLoop then
+		vehicleLoop:Disconnect()
+		vehicleLoop = nil
+	end
+
+	currentIntensity = intensity
+
+	if intensity == 0 then
+		return
+	end
+
+	vehicleLoop = RunService.Stepped:Connect(function()
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+
+		local subject = cam.CameraSubject
+		if not subject then return end
+
+		if subject:IsA("Humanoid") then
+			local seat = subject.SeatPart
+			if seat then
+				local dir = seat.CFrame.LookVector
+				seat:ApplyImpulse(dir * Vector3.new(intensity, intensity, intensity))
+			end
+		elseif subject:IsA("BasePart") then
+			local dir = subject.CFrame.LookVector
+			subject:ApplyImpulse(dir * Vector3.new(intensity, intensity, intensity))
+		end
+	end)
+end
+
+local function stopVehicleSpeed()
+	if vehicleLoop then
+		vehicleLoop:Disconnect()
+		vehicleLoop = nil
+	end
+	currentIntensity = 0
+end
+
+---------------------------------------------------------------------
+-- DOT COLORS (YOUR EXACT PALETTE)
+---------------------------------------------------------------------
+
+local dotColors = {
+	[250]  = Color3.fromRGB(20, 60, 180),   -- Dark Blue
+	[750]  = Color3.fromRGB(160, 120, 60),  -- Hazel
+	[2000] = Color3.fromRGB(20, 90, 40),    -- Dark Green
+	[5000] = Color3.fromRGB(120, 60, 180),  -- Purple
+	[7000] = Color3.fromRGB(200, 90, 20),   -- Dark Orange
+}
+
+---------------------------------------------------------------------
+-- DOT HOLDER (TOP‑RIGHT)
+---------------------------------------------------------------------
+
+local dotHolder = Instance.new("Frame", gui)
+dotHolder.Size = UDim2.new(0, 150, 0, 30)
+dotHolder.Position = UDim2.new(1, -160, 0, 5)
+dotHolder.BackgroundTransparency = 1
+
+local layout = Instance.new("UIListLayout", dotHolder)
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+layout.VerticalAlignment = Enum.VerticalAlignment.Center
+layout.Padding = UDim.new(0, 8)
+
+---------------------------------------------------------------------
+-- CREATE DOTS (SMALLER)
+---------------------------------------------------------------------
+
+local function createDot(speed)
+	local dot = Instance.new("Frame", dotHolder)
+	dot.Size = UDim2.fromOffset(18, 18)
+	dot.BackgroundColor3 = dotColors[speed]
+	dot.BorderSizePixel = 0
+
+	local c = Instance.new("UICorner", dot)
+	c.CornerRadius = UDim.new(1, 0)
+
+	local glow = Instance.new("UIStroke", dot)
+	glow.Thickness = 1.2
+	glow.Color = Color3.fromRGB(255,255,255)
+	glow.Transparency = 0.6
+
+	local btn = Instance.new("TextButton", dot)
+	btn.BackgroundTransparency = 1
+	btn.Size = UDim2.fromScale(1,1)
+	btn.Text = ""
+
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(dot, TweenInfo.new(0.12), {
+			Size = UDim2.fromOffset(22, 22)
+		}):Play()
+	end)
+
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(dot, TweenInfo.new(0.12), {
+			Size = UDim2.fromOffset(18, 18)
+		}):Play()
+	end)
+
+	btn.MouseButton1Click:Connect(function()
+		applyVehicleSpeed(speed)
+	end)
+end
+
+for _, spd in ipairs({250, 750, 2000, 5000, 7000}) do
+	createDot(spd)
+end
+
+---------------------------------------------------------------------
+-- BUTTON HOLDER (TOP‑RIGHT BELOW DOTS)
+---------------------------------------------------------------------
+
+local buttonHolder = Instance.new("Frame", gui)
+buttonHolder.Size = UDim2.new(0, 120, 0, 40)
+buttonHolder.Position = UDim2.new(1, -130, 0, 40)
+buttonHolder.BackgroundTransparency = 1
+
+local bl = Instance.new("UIListLayout", buttonHolder)
+bl.FillDirection = Enum.FillDirection.Horizontal
+bl.HorizontalAlignment = Enum.HorizontalAlignment.Right
+bl.VerticalAlignment = Enum.VerticalAlignment.Top
+bl.Padding = UDim.new(0, 10)
+
+---------------------------------------------------------------------
+-- GOLD GRADIENT FOR F BUTTON
+---------------------------------------------------------------------
+
+local function applyGoldGradient(obj)
+	local grad = Instance.new("UIGradient", obj)
+	grad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 220, 0)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 170, 0))
+	})
+	grad.Rotation = 90
+end
+
+---------------------------------------------------------------------
+-- CUSTOM SPEED INPUT BOX (HIDDEN UNTIL HOLD F)
+---------------------------------------------------------------------
+
+local inputBox = Instance.new("TextBox", gui)
+inputBox.Size = UDim2.fromOffset(80, 24)
+inputBox.Position = UDim2.new(1, -140, 0, 80)
+inputBox.BackgroundColor3 = Color3.fromRGB(255,255,255)
+inputBox.TextColor3 = Color3.fromRGB(0,0,0)
+inputBox.PlaceholderText = "Speed"
+inputBox.Text = ""
+inputBox.Visible = false
+inputBox.ClearTextOnFocus = false
+inputBox.TextSize = 14
+
+local ic = Instance.new("UICorner", inputBox)
+ic.CornerRadius = UDim.new(0, 6)
+
+---------------------------------------------------------------------
+-- CREATE CIRCLE BUTTONS (SMALLER)
+---------------------------------------------------------------------
+
+local holdingF = false
+local holdStart = 0
+
+local function createCircleButton(label, color, callback, isGold)
+	local b = Instance.new("Frame", buttonHolder)
+	b.Size = UDim2.fromOffset(24, 24)
+	b.BackgroundColor3 = color
+	b.BorderSizePixel = 0
+
+	local c = Instance.new("UICorner", b)
+	c.CornerRadius = UDim.new(1, 0)
+
+	if isGold then
+		applyGoldGradient(b)
+	end
+
+	local t = Instance.new("TextButton", b)
+	t.Size = UDim2.fromScale(1,1)
+	t.BackgroundTransparency = 1
+	t.Text = label
+	t.Font = Enum.Font.GothamSemibold
+	t.TextSize = 13
+	t.TextColor3 = Color3.fromRGB(255,255,255)
+
+	-- Hover animation
+	t.MouseEnter:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.12), {
+			Size = UDim2.fromOffset(28, 28)
+		}):Play()
+	end)
+
+	t.MouseLeave:Connect(function()
+		TweenService:Create(b, TweenInfo.new(0.12), {
+			Size = UDim2.fromOffset(24, 24)
+		}):Play()
+	end)
+
+	-- HOLD F LOGIC
+	if label == "F" then
+		t.MouseButton1Down:Connect(function()
+			holdingF = true
+			holdStart = tick()
+
+			-- Color pulse while holding
+			task.spawn(function()
+				while holdingF do
+					b.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+					task.wait(0.1)
+					b.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+					task.wait(0.1)
+				end
+			end)
+
+			-- Wait 3 seconds
+			task.delay(3, function()
+				if holdingF then
+					inputBox.Visible = true
+					inputBox:CaptureFocus()
+				end
+			end)
+		end)
+
+		t.MouseButton1Up:Connect(function()
+			holdingF = false
+			b.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+		end)
+	end
+
+	t.MouseButton1Click:Connect(callback)
+end
+
+-- FORCE BUTTON (GOLD)
+createCircleButton("F", Color3.fromRGB(255, 200, 0), function()
+	if currentIntensity > 0 then
+		applyVehicleSpeed(currentIntensity * 2.5)
+		task.delay(1.5, function()
+			applyVehicleSpeed(currentIntensity)
+		end)
+	end
+end, true)
+
+-- STOP BUTTON
+createCircleButton("S", Color3.fromRGB(200,60,60), function()
+	stopVehicleSpeed()
+end, false)
+
+---------------------------------------------------------------------
+-- INPUT BOX APPLY SPEED
+---------------------------------------------------------------------
+
+inputBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		local val = tonumber(inputBox.Text)
+		if val then
+			applyVehicleSpeed(val)
+		end
+	end
+	inputBox.Visible = false
+end)
+
+---------------------------------------------------------------------
+-- G TOGGLE
+---------------------------------------------------------------------
+
+local visible = true
+
+UserInputService.InputBegan:Connect(function(i, gp)
+	if gp then return end
+	if i.KeyCode == Enum.KeyCode.G then
+		visible = not visible
+		dotHolder.Visible = visible
+		buttonHolder.Visible = visible
+		inputBox.Visible = false
+	end
+end)
+
 	local JUMP_FORCE = 120
 	local FORWARD_BOOST = 80
 	local carJumpEnabled = false
