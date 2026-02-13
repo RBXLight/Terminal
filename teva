@@ -1377,23 +1377,7 @@ local function updateNoclip()
     end
 end
 
-task.spawn(function()
-    pcall(function()
-        local hook = newcclosure(function()
-            return
-        end)
 
-        for _, obj in getgc(false)do
-            if typeof(obj) == 'function' then
-                local source = debug.info(obj, 's')
-
-                if source and source:find('CharacterCollision') then
-                    hookfunction(obj, hook)
-                end
-            end
-        end
-    end)
-end)
 task.spawn(function()
     while true do
         if Env.cfg.shootarrested then
