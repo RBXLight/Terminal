@@ -41,21 +41,7 @@ function FX:Sound(id, vol, pitch)
     end)
 end
 
-function FX:Haptic(type)
-    if not self.hapticEnabled then return end
-    task.spawn(function()
-        pcall(function()
-            local h = Instance.new("HapticEffect")
-            h.Type = type == "heavy"
-                and Enum.HapticEffectType.GameplayExplosion
-                or Enum.HapticEffectType.Collision
-            h.Parent = Workspace
-            h:Play()
-            task.wait(0.1)
-            h:Destroy()
-        end)
-    end)
-end
+
 
 function FX:Click()
     self:Sound(Assets.Sounds.Click, 0.4, 1)
